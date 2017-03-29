@@ -38,7 +38,8 @@ body {
 }
 
 a {
-  $anchor-color: scale_color($base-color, $saturation: 20%);
+  $anchor-color: lighten(scale_color($base-color, $saturation: 20%), 20%);
+
   color: $anchor-color;
   text-decoration: none; //fallback
   text-decoration: underline dashed currentColor;

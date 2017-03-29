@@ -258,11 +258,11 @@ body {
   color: #f8f8f8; }
 
 a {
-  color: #571a5f;
+  color: #a131ae;
   text-decoration: none;
   text-decoration: underline dashed currentColor; }
   a:hover {
-    color: #a131ae; }
+    color: #cb6ed7; }
 
 @media screen and (min-width: 480px) {
   .mobile-only {
