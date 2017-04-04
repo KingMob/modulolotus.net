@@ -3,7 +3,7 @@ pom.xml.asc
 *jar
 /lib/
 /classes/
-/target/
+/cryogen/target/
 /checkouts/
 .lein-deps-sum
 .lein-repl-history
@@ -12,3 +12,4 @@ pom.xml.asc
 .nrepl-port
 .sass-cache
 /cryogen/resources/public/
+sasl_passwd
