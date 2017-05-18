@@ -8,7 +8,7 @@
                            [compojure "1.5.2"]
                            [ring-server "0.4.0"]
                            [cryogen-markdown "0.1.6"]
-                           [cryogen-core "0.1.53"]
+                           [cryogen-core "0.1.54"]
                            ;; [org.clojure/tools.nrepl "0.2.12"]
                            ]
             :plugins [[lein-ring "0.9.7"]]
