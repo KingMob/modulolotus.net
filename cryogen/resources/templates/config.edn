@@ -28,5 +28,12 @@
  :previews?          false
  :clean-urls?        true
  :hide-future-posts? true
- :klipse             {}
+  :klipse {:settings {:selector ".klipse-cljs"
+                     :selector-reagent ".klipse-reagent"
+                     :selector-eval-ruby ".klipse-ruby"
+                     :codemirror-options-in {:line-numbers true}
+                     :codemirror-options-out {:line-numbers true}}}
+
+
+                                                        
  :debug?             false}
