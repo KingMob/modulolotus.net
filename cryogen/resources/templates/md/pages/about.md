@@ -5,11 +5,13 @@
 
 ## About
 
-I'm a software developer and former neuroscientist. I just wrapped up being CTO of a startup. I can be found on GitHub as [KingMob](https://github.com/KingMob/).
+My name is Matthew Davidson. I'm a software engineer, former neuroscientist, and serial startup CTO. I can be found on GitHub as [KingMob](https://github.com/KingMob/).
 
-I've built complete systems from top to bottom and helmed small teams. Need someone to solve your problems with code? I'm currently available.
+I've built complete systems from top to bottom and helmed small teams. Need someone to solve your problems with code? I'm available.
 
-I have a fiancé, two cats, and a beard. I live in Brooklyn.
+I have a wife, a cat, and a beard. I live in Brooklyn.
+
+Sometimes I play D&D.
 
 ## Contact Me
 

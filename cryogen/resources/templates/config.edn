@@ -18,7 +18,7 @@
  :sass-path          "sass"
  :compass-path       "compass"
  :theme              "lotus"
- :resources          ["themes/lotus/img" "supplemental"]
+ :resources          ["themes/lotus/img" "supplemental" "assets" "img"]
  :keep-files         [".git"]
  :disqus?            false
  :disqus-shortname   ""
@@ -28,7 +28,7 @@
  :previews?          false
  :clean-urls?        true
  :hide-future-posts? true
-  :klipse {:settings {:selector ".klipse-cljs"
+ :klipse {:settings {:selector ".klipse-cljs"
                      :selector-reagent ".klipse-reagent"
                      :selector-eval-ruby ".klipse-ruby"
                      :codemirror-options-in {:line-numbers true}

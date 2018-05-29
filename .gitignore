@@ -13,3 +13,4 @@ pom.xml.asc
 .sass-cache
 /cryogen/resources/public/
 sasl_passwd
+.DS_Store
