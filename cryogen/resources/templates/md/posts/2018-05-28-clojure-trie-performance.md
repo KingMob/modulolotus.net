@@ -3,8 +3,12 @@
  :layout :post
  :klipse true
  :tags  ["clojure" "performance" "trie"]}
+ 
 
-Last summer, I was doing HackerRank for fun and whiteboard practice, and I came across [a nifty little trie exercise](https://www.hackerrank.com/challenges/ctci-contacts/problem). The challenge was to add a corpus of words to a trie, and report on the number of words beginning with a list of prefixes.
+<link rel="stylesheet" href="/assets/chartist.min.css"></link>
+<link rel="stylesheet" href="/assets/chart.css"></link>
+    
+Last summer, I was doing HackerRank for fun and whiteboard practice, and I came across [a nifty little trie exercise](https://www.hackerrank.com/challenges/ctci-contacts/problem). The challenge was to add a list of contacts to a trie, and report on the number of contacts beginning with a list of prefixes.
 
 I used my favorite language, Clojure, and quickly arrived at the correct solution, but many of these coding exercise sites have time constraints, and the idiomatic Clojure was too slow.
 
@@ -44,7 +48,7 @@ Here's the basic implementation. It has the major trie functions to add a new wo
      0)))
 ```
 
-It works, but was way too slow.
+This works, but was way too slow.
 
 #### Replace hash-maps with array-maps
 
@@ -124,11 +128,11 @@ Alright, well, what about using a record with named fields and cache the default
      (->AlphabetTrieNode val false empty-alphabet-vector))))
 ```
 
-Oof, no, code is more complicated and slower. Most likely because protocols/records/types introduce function dispatch overhead. The real benefits of records/types is that field access is much faster.
+Oof, no, the code is both more complicated and slower. Most likely because protocols/records/types introduce function dispatch overhead. The real benefits of records/types is that field access is much faster, which we'll exploit later.
 
 ## Algorithmic/data change
 
-OK, let's re-evaluate, profile, and rethink the problem. We can trade off a bit of memory to save a ton of computation time. Instead of recomputing subtree cardinality afresh each time, we can track the word count at each node, and build as we add. Every time we add a word, we just increment the count of each parent node by 1. Then, the `count` operation is just a read out of the value at that node. 
+OK, let's re-evaluate, profile, and rethink the problem. (Tweaking rarely beats using the right data structures/algorithms.) We can trade off a bit of memory to save a ton of computation time. Instead of recomputing the subtree count afresh each time, we can keep track of the word count at each node, and increase as we go. Every time we add a word, we just increment the count of each parent node by 1. Then, the `count` operation for a prefix is just a read-out of the value at that node. 
 
 Just to check, I applied this to the original solution, and got a speed-up of 10x, but it still wasn't fast enough, and using records enables some unique JVM optimizations, so we'll continue with that. Here are the changed parts:
 
@@ -158,13 +162,13 @@ Just to check, I applied this to the original solution, and got a speed-up of 10
 
 Now this speeds up by a factor of 50. We're getting closer.
 
-## JVM black magic
+## JVM optimizations
 
-Clojure uses immutable data by default, for simplicity, reasonability, and thread safety. But persistent data structures have an inherent overhead when "mutating": copies are unavoidable. What if we ditch immutability? 
+Clojure uses immutable data by default, for simplicity, ease of reasoning, and thread safety. But immutable data structures have an inherent overhead when "mutating": copies are unavoidable. What if we ditch immutability? 
 
 #### Mutable fields
 
-We can do this by adding metadata to fields indicating they're `volatile-mutable`. They then become private fields and can be directly altered in code.
+We can do this by adding metadata to fields indicating they're `volatile-mutable`. They can then be directly mutated in code.
 
 ```clojure
 (deftype AlphabetTrieNode [val
@@ -216,7 +220,7 @@ What else can we do? Well, if we don't care about thread safety, we can switch t
         (add-substring (aget children i) cs))))
 ```
 
-Great! We're down to a half second now, and fast enough for HackerRank's picky tests.
+Great, we're down to a half second now, and fast enough for HackerRank's picky tests. Done!
 
 ## Alternatives
 
@@ -228,14 +232,19 @@ Transients are a way to use mutable data structures with code that has the same 
 
 #### Loop/recur
 
-If a loop or function returns a value in the tail position, the current stack frame can be safely overwritten with the new value. Due to limitations of the JVM, however, tail-call optimization (TCO) is not natively supported. `loop/recur` can be used to avoid blowing up a deep stack, and it probably eased memory pressure, but the sheer depth of the trie ensured that most nodes (essentially leaves or leaf "chains") were still held on to.
+If a loop or function returns a value in the tail position, the current stack frame can be safely overwritten with the new value. Due to limitations of the JVM, however, tail-call optimization (TCO) is not natively supported. `loop/recur` can be used to avoid blowing up a deep stack, and it probably improved caching and eased memory pressure here, but I didn't analyze its performance effect separately.
 
-#### Reflection
+#### Reflection and type-hints
 
-If the compiler can't figure out what a data type is when invoking a method, it will slow things down massively. Use `(set! *warn-on-reflection* true)` to detect this. I tested this, but there was no reflection in the hot path.
+If the compiler can't figure out what a data type is when invoking a method, it will slow things down massively. Use `(set! *warn-on-reflection* true)` in a file to check. I tested this, but there was no reflection in the hot path.
 
 Unfortunately, it's not really possible to type-hint protocol method parameters, and you can't defer to a regular helper function with mutable fields, since mutable fields are private. At that point, you may want to try another method or use `definterface`.
 
 ## Results
+Here are the raw results. The first three are for standard data structures, the remainder use records/types.
 
+<div class="ct-chart ct-perfect-fourth"></div>
+
+<script src="/assets/chartist.min.js"></script>
+<script src="/assets/clojure-trie-performance-chart.js">
 
