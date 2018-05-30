@@ -232,7 +232,7 @@ Transients are a way to use mutable data structures with code that has the same 
 
 #### Loop/recur
 
-If a loop or function returns a value in the tail position, the current stack frame can be safely overwritten with the new value. Due to limitations of the JVM, however, tail-call optimization (TCO) is not natively supported. `loop/recur` can be used to avoid blowing up a deep stack, and it probably improved caching and eased memory pressure here, but I didn't analyze its performance effect separately.
+If a loop or function returns a value in the tail position, the current stack frame can be safely overwritten with the new value. `recur` can be used to avoid blowing up a deep stack, and it probably eased memory pressure here, but I didn't analyze its performance effect separately.
 
 #### Reflection and type-hints
 
