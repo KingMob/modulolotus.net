@@ -1,6 +1,6 @@
 var data = {
-    labels: ['Standard data structures', 'Standard w/ word counts', 'Standard w/ transients', 'Array-maps', 'Transduce', 'Record', 'Record w/ word count', 'Volatile-mutable', 'Unsychronized-mutable'], 
-    series: [[34.53, 2.70, 2.14, 34.90, 24.44, 66.0, 1.03, 0.517, 0.432]]
+    labels: ['Standard hash-maps', 'Transduce', 'Standard w/ word counts', 'Standard w/ WCs and transients', 'Record', 'Record w/ word count', 'Volatile-mutable', 'Unsychronized-mutable'], 
+    series: [[34.53, 24.44, 2.70, 2.14, 66.0, 1.03, 0.517, 0.432]]
 };
 
 var options = {
