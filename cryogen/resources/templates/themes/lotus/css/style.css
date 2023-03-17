@@ -8,8 +8,11 @@
 /* ==================================================
    Google Fonts
 ================================================== */
-@import url("http://fonts.googleapis.com/css?family=Oxygen:300,400,700");
-@import url("http://fonts.googleapis.com/css?family=Montserrat:400,700");
+/* @import url('https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Fira+Mono:wght@500&display=swap");
+@import url("http://fonts.googleapis.com/css?family=Montserrat:400,700"); */
+
+@import url('https://fonts.googleapis.com/css2?family=Fira+Mono:wght@400;500;700&family=Lato:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&family=Montserrat:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&display=swap');
 
 /* ==================================================
    Global Styles
@@ -40,11 +43,11 @@ html {
 }
 
 body {
-    font-family: "Oxygen", Arial, Verdana, Helvetica, sans-serif;
-    font-size: 15px;
+    font-family: Lato, Arial, Verdana, Helvetica, sans-serif;
+    font-size: 18px;
     color: #555;
     font-weight: 400;
-    line-height: 28px;
+    line-height: 1.2;
     background: #FFF;
 
     text-rendering: optimizeLegibility;

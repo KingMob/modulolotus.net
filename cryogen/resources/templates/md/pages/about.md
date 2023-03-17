@@ -5,11 +5,9 @@
 
 ## About
 
-My name is Matthew Davidson. I'm a software engineer, former neuroscientist, and serial startup CTO. I can be found on GitHub as [KingMob](https://github.com/KingMob/).
+My name is Matthew Davidson. I'm a software engineer, former neuroscientist, serial startup CTO, and former Buddhist monk, for like, two weeks. I can be found on GitHub as [KingMob](https://github.com/KingMob/), where I'm the current maintainer of [Aleph](https://github.com/clj-commons/aleph) and [Manifold](https://github.com/clj-commons/manifold).
 
-I've built complete systems from top to bottom and helmed small teams. Need someone to solve your problems with code? I'm available.
-
-I have a wife, a cat, and a beard. I live in Brooklyn.
+I have a wife and a beard. I'm overseas these days, currently living in Bali.
 
 Sometimes I play D&D.
 
