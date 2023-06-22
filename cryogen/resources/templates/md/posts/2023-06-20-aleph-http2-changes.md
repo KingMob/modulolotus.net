@@ -35,7 +35,7 @@ I learned a ton of material from the RFCs and design documents, and then I promp
 
 ##### Server Push
 
-See, the RFC doesn't always reflect reality. Server push, where the server can initiate "responses" that the client hasn't requested (yet), turned out to be extremely difficult to get right (TODO add link). To truly do it correctly requires understanding the network timings of the connection, low-level control of the OS's TCP/IP buffers, and be able to interrogate the browser's cache. Done badly, it will actually make things *slower*. Chrome [effectively disabled it](https://developer.chrome.com/blog/removing-push/) last year, by turning it off for all new connections, but that's not in the specs.
+See, the RFC doesn't always reflect reality. Server push, where the server can initiate "responses" that the client hasn't requested (yet), turned out to be extremely difficult to get right. To truly do it correctly requires understanding the network timings of the connection, low-level control of the OS's TCP/IP buffers, and be able to interrogate the browser's cache. Done badly, it will actually make things *slower*. Chrome [effectively disabled it](https://developer.chrome.com/blog/removing-push/) last year, by turning it off for all new connections, but that's not in the specs.
 
 ##### Prioritization
 
