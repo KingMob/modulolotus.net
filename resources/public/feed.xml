@@ -1,0 +1,446 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<rss version='2.0' xmlns:atom='http://www.w3.org/2005/Atom'>
+<channel>
+<atom:link href='http://www.modulolotus.net' rel='self' type='application/rss+xml'/>
+<title>
+Modulo Lotus
+</title>
+<link>
+http://www.modulolotus.net
+</link>
+<description>
+A blog on code, data, and occasionally, meditation
+</description>
+<lastBuildDate>
+Wed, 16 Oct 2024 19:41:51 +0700
+</lastBuildDate>
+<generator>
+clj-rss
+</generator>
+<item>
+<guid>
+http://www.modulolotus.net/posts/2023-06-20-aleph-http2-changes/
+</guid>
+<link>
+http://www.modulolotus.net/posts/2023-06-20-aleph-http2-changes/
+</link>
+<title>
+Adding HTTP/2 client support to Aleph
+</title>
+<description>
+&lt;p&gt;Earlier this year, I received a grant from Clojurists Together to modernize Aleph and bring HTTP/2 support to it. These are some of the interesting tidbits of the journey so far.&lt;/p&gt;&lt;h2 id=&quot;http/2:&amp;#95;now&amp;#95;twice&amp;#95;as&amp;#95;hypertextual!&quot;&gt;HTTP/2: Now Twice as Hypertextual!&lt;/h2&gt;&lt;p&gt;I began with a deep dive into &lt;a href='https://www.rfc-editor.org/rfc/rfc9113.html'&gt;RFC 9113&lt;/a&gt; and its predecessors, and absorbed everything I could about the new updates for &lt;a href='https://web.dev/performance-http2/'&gt;HTTP/2&lt;/a&gt;: streams, frames, flow control, server push, prioritization, connection status, pseudo-headers, etc. Some of the underlying changes are handled invisibly by Netty (Aleph's underlying network lib), like the new binary frames and header compression, but the rest required serious updates to Aleph to get working.&lt;/p&gt;&lt;h3 id=&quot;streams&quot;&gt;Streams&lt;/h3&gt;&lt;p&gt;HTTP is based on the simple concept of: send a request, wait for a response, repeat. Unfortunately, having to wait for the previous response before getting to send the next request is suboptimal. In theory, &lt;a href='https://developer.mozilla.org/en-US/docs/Web/HTTP/Connection_management_in_HTTP_1.x#http_pipelining'&gt;HTTP/1.1 supports pipelining&lt;/a&gt;, where you can fire off multiple requests without waiting for their responses, and eventually get the responses back in the same order. In reality, that breaks intermediate caches and proxies, so it's rarely enabled. The general solution is to just open multiple TCP connections to the server. Browsers typically limit it to a maximum of six connections per server, putting a cap on parallelism.&lt;/p&gt;&lt;p&gt;HTTP/2 solves this by assigning each request/response pair to a unique &lt;em&gt;stream&lt;/em&gt; (not to be confused with Manifold streams), allowing you to tell which frames are related and safely interleave them. Unfortunately, this broke Aleph's deep assumptions about how things worked. &lt;/p&gt;&lt;p&gt;When you make a request, Aleph returns a Manifold deferred (like a &lt;code&gt;CompletableFuture&lt;/code&gt;), but under the hood, it transforms the Ring request map, places it on a &lt;code&gt;requests&lt;/code&gt; Manifold stream, then a Manifold consumption callback pulls requests off the stream, transforms them some more, converts for Netty, and then places them on the Netty pipeline.&lt;/p&gt;&lt;p&gt;Each &lt;code&gt;put!&lt;/code&gt; on the &lt;code&gt;requests&lt;/code&gt; stream is followed by its corresponding &lt;code&gt;take!&lt;/code&gt; from the &lt;code&gt;responses&lt;/code&gt; stream. This works under the assumptions of HTTP/1 order, but breaks as soon as you have multiple requests in flight with HTTP/2, since an incoming response could be for an out-of-order request.&lt;/p&gt;&lt;p&gt;Fixing this required removing much of the underlying Manifold stream code for HTTP/2 connections.&lt;/p&gt;&lt;h3 id=&quot;http&amp;#95;version&amp;#95;negotiation&quot;&gt;HTTP Version Negotiation&lt;/h3&gt;&lt;p&gt;Supporting multiple HTTP versions requires changes to how how SSL/TLS is used. With just HTTP/1, you can connect to a web server and start transmitting. But RFC 9113 requires that you use TLS's Application-Layer Protocol Negotiation (ALPN; &lt;a href='https://datatracker.ietf.org/doc/html/rfc7301'&gt;RFC 7301&lt;/a&gt;) with secure HTTP/2. &lt;/p&gt;&lt;p&gt;In essence, the client and server agree on a protocol during the TLS handshake process. This is handy, but it broke Aleph's setup process, since you can no longer set up the Manifold code and Netty pipeline for a TCP connection in advance. &lt;/p&gt;&lt;p&gt;What about &lt;em&gt;insecure&lt;/em&gt; HTTP/2? Aleph doesn't support it yet, but the spec allows it if you &lt;em&gt;know in advance&lt;/em&gt; that the server supports it (i.e., servers you control in your own internal network).&lt;/p&gt;&lt;h3 id=&quot;lies,&amp;#95;damned&amp;#95;lies,&amp;#95;and&amp;#95;specifications&quot;&gt;Lies, Damned Lies, and Specifications&lt;/h3&gt;&lt;p&gt;I learned a ton of material from the RFCs and design documents, and then I promptly had to &lt;em&gt;unlearn&lt;/em&gt; a quarter of it. With evolving specs, there's a real danger in reading outdated information. It's not as simple as ignoring old RFCs, either.&lt;/p&gt;&lt;h5 id=&quot;server&amp;#95;push&quot;&gt;Server Push&lt;/h5&gt;&lt;p&gt;See, the RFC doesn't always reflect reality. Server push, where the server can initiate &quot;responses&quot; that the client hasn't requested (yet), turned out to be extremely difficult to get right. To truly do it correctly requires understanding the network timings of the connection, low-level control of the OS's TCP/IP buffers, and be able to interrogate the browser's cache. Done badly, it will actually make things &lt;em&gt;slower&lt;/em&gt;. Chrome &lt;a href='https://developer.chrome.com/blog/removing-push/'&gt;effectively disabled it&lt;/a&gt; last year, by turning it off for all new connections, but that's not in the specs.&lt;/p&gt;&lt;h5 id=&quot;prioritization&quot;&gt;Prioritization&lt;/h5&gt;&lt;p&gt;Likewise, prioritization &lt;a href='https://blog.cloudflare.com/better-http-2-prioritization-for-a-faster-web/'&gt;did not pan out as hoped&lt;/a&gt;. In earlier versions of the HTTP/2 RFCs, they described a system relating streams to each other in a weighted DAG of dependencies. Unfortunately, each browser had different ideas of how to interpret the weights; Safari and Edge effectively ignored prioritization entirely. This led to servers being unable to use it in a general manner. On top of that, browsers already prioritized how they ordered/delayed requests to begin with. In the most recent RFC, prioritization was deprecated; for HTTP/3, they've started promoting a simpler, header-based prioritization system (&lt;a href='https://www.rfc-editor.org/rfc/rfc9218.html'&gt;RFC 9218&lt;/a&gt;), which is backwards-compatible, so we hope to backport it when HTTP/3 work begins.&lt;/p&gt;&lt;h3 id=&quot;next&amp;#95;steps&quot;&gt;Next Steps&lt;/h3&gt;&lt;p&gt;The client code is under review now, and will be available as an alpha preview soon.&lt;/p&gt;&lt;p&gt;Many thanks to &lt;a href='https://www.clojuriststogether.org/'&gt;Clojurists Together&lt;/a&gt; for supporting this work.&lt;/p&gt;
+</description>
+<pubDate>
+Tue, 20 Jun 2023 00:00:00 +0700
+</pubDate>
+</item>
+<item>
+<guid>
+http://www.modulolotus.net/posts/2023-03-17-undertale-exapunks/
+</guid>
+<link>
+http://www.modulolotus.net/posts/2023-03-17-undertale-exapunks/
+</link>
+<title>
+Undertale in EXAPUNKS
+</title>
+<description>
+&lt;p&gt;&lt;iframe width=&quot;560&quot; height=&quot;315&quot; src=&quot;https://www.youtube.com/embed/pGUDeObiS38&quot; title=&quot;YouTube video player&quot; frameborder=&quot;0&quot; allow=&quot;accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share&quot; allowfullscreen&gt;&lt;/iframe&gt;&lt;/p&gt;&lt;p&gt;I play games pretty slowly these days. Never finished Myst. Still working on Cuphead.&lt;/p&gt;&lt;p&gt;My wife and I played Undertale a couple years after it came out, and loved it. &lt;/p&gt;&lt;p&gt;I started playing Zachtronics' EXAPUNKS a few years ago, and finally beat it last fall, only to hear that Zachtronics was closing down and moving on. EXAPUNKS is essentially &quot;Assembly language: the game&quot; meets Neuromancer. After a long day of high-level abstraction in your code, sometimes you just want to twiddle some bits.&lt;/p&gt;&lt;p&gt;One of the missions involves hacking a Virtual Boy-like game system, but you can also make freeform games for it, so I made this &quot;demo&quot; of Undertale in EXAPUNKS. &lt;/p&gt;&lt;p&gt;For my own amusement, I'm pretending to have &quot;found&quot; it while hopping dimensions; we'll see if anyone's fooled. &lt;/p&gt;&lt;p&gt;Enjoy!&lt;/p&gt;
+</description>
+<pubDate>
+Fri, 17 Mar 2023 00:00:00 +0700
+</pubDate>
+</item>
+<item>
+<guid>
+http://www.modulolotus.net/posts/2022-06-22-tidd/
+</guid>
+<link>
+http://www.modulolotus.net/posts/2022-06-22-tidd/
+</link>
+<title>
+Test-induced design damage in Clojure
+</title>
+<description>
+ &lt;p&gt;Writing tests is the software equivalent of doing the dishes: unloved, but necessary. Unfortunately, because language designers are almost never interested in testing, it's usually a second-class concept, assuming the language even bothers to treat it as anything different from the rest of code in the first place. This is unfortunate, because it can have detrimental consequences to your code design.&lt;/p&gt;&lt;p&gt;Test-Induced Design Damage (TIDD) is not a new concept. DHH of Rails &lt;a href='https://dhh.dk/2014/test-induced-design-damage.html'&gt;wrote about TIDD&lt;/a&gt; back in 2014. This is not even a new concept for Clojure, as Eric Normand &lt;a href='https://ericnormand.me/issues/purelyfunctional-tv-newsletter-325-tip-don-t-use-a-protocol-to-make-testing-easier'&gt;wrote a newsletter about it&lt;/a&gt; in the past. Unfortunately, Normand's post didn't have the impact I'd hoped for, nor did it go into enough detail for me, so I'm going to try and give examples that will help people understand the issue and the trade-offs a bit better.&lt;/p&gt;&lt;h2 id=&quot;what&amp;#95;is&amp;#95;test-induced&amp;#95;design&amp;#95;damage?&quot;&gt;What is test-induced design damage?&lt;/h2&gt;&lt;p&gt;I suggest you read DHH's post above, but in short, it's altering code to better support tests at the expense of other aspects of the system. Communities like Test-Driven Development (TDD) have taken it as &lt;i&gt;a priori&lt;/i&gt; gospel that better testing is a primary goal, while downplaying the consequences. As they say, software developers know the value of everything and the cost of nothing.&lt;/p&gt;&lt;p&gt;For example, extracting hidden/private/closed-over code so it can be mocked for testing also carries detriments like requiring names (it usually can't be anonymous any more), cluttering docs, expanding argument lists (since support objects must be passed-in or injected), potential misuse (if users can now directly access/create/use an object when they shouldn't), and indirection overhead (both mental and code-based).&lt;/p&gt;&lt;p&gt;&lt;strong&gt;To be clear: alterations that support testing may have other benefits that justify their use, but this needs to be evaluated on a case-by-case basis, rather than assuming improved testing is a sufficient justification &lt;i&gt;itself&lt;/i&gt;.&lt;/strong&gt; &lt;/p&gt;&lt;p&gt;It's even possible that complicating your code to support testing actually &lt;strong&gt;increases the number of bugs&lt;/strong&gt;, despite more testing. This is because, all other things being equal, larger codebases have more bugs&lt;a href='#fn-1' id='fnref1'&gt;&lt;sup&gt;1&lt;/sup&gt;&lt;/a&gt;.&lt;/p&gt;&lt;p&gt;The rest of this post will look at changes made &lt;em&gt;solely&lt;/em&gt; for testing. I'll show you some examples of TIDD, in order of increasing complexity. &lt;/p&gt;&lt;h2 id=&quot;examples&quot;&gt;Examples&lt;/h2&gt;&lt;p&gt;Imagine you have some function that takes too long to use in local tests. Maybe it makes a network call that takes a while.&lt;/p&gt;&lt;p&gt;Let's say you made a plain function:&lt;/p&gt;&lt;pre&gt;&lt;code class=&quot;clojure&quot;&gt;&amp;#40;defn my-fn 
+  &amp;#91;&amp;#93;
+  &amp;#40;call-prod-endpoint&amp;#41;&amp;#41;
+
+;; usage
+&amp;#40;my-fn&amp;#41;
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;You decide you need to mock it for testing, so what are your options?&lt;/p&gt;&lt;h3 id=&quot;redefining&amp;#95;via&amp;#95;&lt;code&gt;with-redefs&lt;/code&gt;&amp;#95;or&amp;#95;&lt;code&gt;with-redefs-fn&lt;/code&gt;&quot;&gt;Redefining via &lt;code&gt;with-redefs&lt;/code&gt; or &lt;code&gt;with-redefs-fn&lt;/code&gt;&lt;/h3&gt;&lt;p&gt;Using &lt;code&gt;with-redefs&lt;/code&gt;, you can temporarily replace the root definition for testing without touching the original code at all (&lt;code&gt;alter-var-root&lt;/code&gt; can work, too, though it's more cumbersome to use). This sounds like the perfect way to leave non-testing code clean, right? Eric Normand suggested this in &lt;a href='https://ericnormand.me/issues/purelyfunctional-tv-newsletter-325-tip-don-t-use-a-protocol-to-make-testing-easier'&gt;his original newsletter.&lt;/a&gt;&lt;/p&gt;&lt;pre&gt;&lt;code class=&quot;clojure&quot;&gt;&amp;#40;defn my-fn 
+  &amp;#91;&amp;#93;
+  &amp;#40;call-prod-endpoint&amp;#41;&amp;#41;
+
+;; test
+&amp;#40;deftest redef-ing-my-fn
+  &amp;#40;with-redefs &amp;#91;my-fn #&amp;#40;call-mock-endpoint&amp;#41;&amp;#93;
+    &amp;#40;is &amp;#40;= &amp;#40;my-fn&amp;#41; some-expected-result&amp;#41;&amp;#41;&amp;#41;&amp;#41;
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;Unfortunately, &lt;code&gt;with-redefs&lt;/code&gt; requires a lot of care with multi-threaded / lazy code, since the var root definition is changed for &lt;i&gt;all&lt;/i&gt; threads for a limited time. Code in other threads that run after the &lt;code&gt;with-redefs&lt;/code&gt; ends can easily use an unintended value. Tim Baldridge wrote a long post on &lt;a href='https://cognitect.com/blog/2016/9/15/works-on-my-machine-understanding-var-bindings-and-roots'&gt;how vars work under the hood and why redefs can be tricky&lt;/a&gt;, and it's worth reading before using functions like &lt;code&gt;binding/with-redefs&lt;/code&gt; in any context.&lt;/p&gt;&lt;p&gt;You &lt;i&gt;could&lt;/i&gt; safely use &lt;code&gt;with-redefs&lt;/code&gt; if you can guarantee all of the following:&lt;/p&gt;&lt;ol&gt;&lt;li&gt;Don't run multiple tests simultaneously - slower unit testing is the price&lt;/li&gt;&lt;li&gt;Don't rely on background threads - these are fragile anyway, and create timing concerns even if you don't redef anything&lt;/li&gt;&lt;li&gt;Wrap the entire body of the test in &lt;code&gt;with-redefs&lt;/code&gt; - you don't need to worry about lazy evaluation happening after &lt;code&gt;with-redefs&lt;/code&gt; ends if you've already forced the values you need&lt;/li&gt;&lt;li&gt;Ensure you always join with other threads before exiting the &lt;code&gt;with-redefs&lt;/code&gt; if those threads do anything an assertion relies on - this may require code distortion itself&lt;/li&gt;&lt;/ol&gt;&lt;p&gt;These are a lot of constraints. #1 is undesirable if easy, but ensuring #2 and #4 may range from annoying to infeasible without altering our main code, which violates the goal of avoiding TIDD.&lt;/p&gt;&lt;p&gt;(There's also a long discussion about &lt;code&gt;with-redefs&lt;/code&gt; in the &lt;a href='https://www.reddit.com/r/Clojure/comments/ble9k4/dont_use_a_protocol_to_make_testing_easier/'&gt;Reddit comments on Eric Normand's original newsletter&lt;/a&gt;. Unfortunately, Eric's example involved a database connection, which inherently has state and was thus a stronger candidate for protocols/components, and many people latched onto that aspect instead of considering the bigger picture.)&lt;/p&gt;&lt;h3 id=&quot;rebinding&amp;#95;via&amp;#95;&lt;code&gt;binding&lt;/code&gt;&amp;#95;or&amp;#95;&lt;code&gt;with-bindings&lt;/code&gt;&quot;&gt;Rebinding via &lt;code&gt;binding&lt;/code&gt; or &lt;code&gt;with-bindings&lt;/code&gt;&lt;/h3&gt;&lt;p&gt;This is similar to the above, and works, but it requires you declare &lt;code&gt;my-fn&lt;/code&gt; as &lt;code&gt;&amp;#94;:dynamic&lt;/code&gt;. &lt;/p&gt;&lt;pre&gt;&lt;code class=&quot;clojure&quot;&gt;&amp;#40;defn &amp;#94;:dynamic my-fn 
+  &amp;#91;&amp;#93;
+  &amp;#40;call-prod-endpoint&amp;#41;&amp;#41;
+
+;; test usage
+&amp;#40;deftest rebinding-my-fn
+  &amp;#40;binding &amp;#91;my-fn #&amp;#40;call-mock-endpoint&amp;#41;&amp;#93;
+    &amp;#40;is &amp;#40;= &amp;#40;my-fn&amp;#41; some-expected-result&amp;#41;&amp;#41;&amp;#41;&amp;#41;  
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;On the upside, it only changes the local thread and its children's definition, so tests can run in parallel. Care must still be taken with background threads, but you should avoid those in tests anyway. For all other started threads, they'll carry the binding frame with them, even if the top thread ended, so it's much safer for multi-threaded code.&lt;/p&gt;&lt;p&gt;However, this is still a slight alteration of the code. Declaring it as &lt;code&gt;&amp;#94;:dynamic&lt;/code&gt; means it's slightly slower to execute in production code. Worse, it sends a false signal to users that they may need/want to rebind it. Plus, it suffers a variant of the expression problem, since you cannot mark outside vars as &lt;code&gt;&amp;#94;:dynamic&lt;/code&gt; without forking the code. (One can argue you shouldn't test outside code, but creating wrapper fns just to mock is TIDD again.) Still, this is almost the ideal solution, if not for &lt;code&gt;&amp;#94;:dynamic&lt;/code&gt;.&lt;a href='#fn-2' id='fnref2'&gt;&lt;sup&gt;2&lt;/sup&gt;&lt;/a&gt;&lt;/p&gt;&lt;h3 id=&quot;branch&amp;#95;inside&amp;#95;the&amp;#95;function&amp;#95;on&amp;#95;a&amp;#95;testing&amp;#95;flag&quot;&gt;Branch inside the function on a testing flag&lt;/h3&gt;&lt;p&gt;This might be an option if you already use feature flags heavily. For testing, it would look something like: &lt;/p&gt;&lt;pre&gt;&lt;code class=&quot;clojure&quot;&gt;&amp;#40;defn my-fn 
+  &amp;#91;&amp;#93;
+  &amp;#40;if-not global.flags/is-testing?
+    &amp;#40;call-prod-endpoint&amp;#41;&amp;#41;
+    &amp;#40;call-mock-endpoint&amp;#41;&amp;#41;
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;Then you need to set &lt;code&gt;global.flags/is-testing?&lt;/code&gt; only when testing. This keeps the function signature clean, but clutters the global namespace, complicates the function body, makes multiple mock behaviors difficult, and adds branching overhead. &lt;/p&gt;&lt;p&gt;You could also use compile-time constants or macros to make this pattern more efficient, but it would still be less flexible and cluttered.&lt;/p&gt;&lt;h3 id=&quot;multimethods&quot;&gt;Multimethods&lt;/h3&gt;&lt;p&gt;What about polymorphism? You could make &lt;code&gt;my-fn&lt;/code&gt; polymorphic with multimethods by dispatching based on whether you're running normally or for testing:&lt;/p&gt;&lt;pre&gt;&lt;code class=&quot;clojure&quot;&gt;
+&amp;#40;defmulti my-fn &amp;#40;fn &amp;#91;type&amp;#93; type&amp;#41;&amp;#41;
+
+&amp;#40;defmethod my-fn :normal &amp;#91;&amp;#95;&amp;#93;
+  &amp;#40;call-prod-endpoint&amp;#41;&amp;#41;
+
+&amp;#40;defmethod my-fn :test &amp;#91;&amp;#95;&amp;#93;
+  &amp;#40;call-mock-endpoint&amp;#41;&amp;#41;
+
+;; usage
+&amp;#40;my-fn :normal&amp;#41;
+
+;; test usage
+&amp;#40;deftest polymorphic-multimethod-test
+  &amp;#40;is &amp;#40;= &amp;#40;my-fn :test&amp;#41; some-expected-result&amp;#41;&amp;#41;&amp;#41;
+
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;The problem is you now have more code, and you have to weave the right dispatch value into &lt;strong&gt;all&lt;/strong&gt; calls to &lt;code&gt;my-fn&lt;/code&gt; (and possibly their parents), which alters the param signatures. You could set the dispatch value as a global var, but that has many of the same problems as internal branching does.&lt;/p&gt;&lt;p&gt;Which leaves protocols...&lt;/p&gt;&lt;h2 id=&quot;protocols&quot;&gt;Protocols&lt;/h2&gt;&lt;p&gt;The pattern I've seen the most in real Clojure code, and unfortunately, the &lt;strong&gt;most complicated&lt;/strong&gt; option, is to replace plain functions with protocols and records.&lt;/p&gt;&lt;pre&gt;&lt;code class=&quot;clojure&quot;&gt;&amp;#40;defprotocol MyProtocol
+  &amp;#40;my-fn &amp;#91;&amp;#95;&amp;#93;&amp;#41;&amp;#41;
+
+&amp;#40;defrecord MyFunctionner &amp;#91;&amp;#93;
+  MyProtocol
+  &amp;#40;my-fn &amp;#91;&amp;#95;&amp;#93;
+    &amp;#40;call-prod-endpoint&amp;#41;&amp;#41;&amp;#41;
+
+&amp;#40;defrecord MyTestFunctionner &amp;#91;&amp;#93;
+  MyProtocol
+  &amp;#40;my-fn &amp;#91;&amp;#95;&amp;#93;
+    &amp;#40;call-mock-endpoint&amp;#41;&amp;#41;&amp;#41;
+
+;; non-default constructors are commonly added
+&amp;#40;defn my-functionner &amp;#91;&amp;#93;
+  &amp;#40;-&amp;gt;MyFunctionner&amp;#41;&amp;#41;
+
+&amp;#40;defn my-test-functionner &amp;#91;&amp;#93;
+  &amp;#40;-&amp;gt;MyTestFunctionner&amp;#41;&amp;#41;
+
+;; usage 
+
+&amp;#40;let &amp;#91;my-fn-er &amp;#40;my-functionner&amp;#41;&amp;#93;
+  &amp;#40;my-fn my-fn-er&amp;#41;&amp;#41;
+
+
+;; add component deps for bonus points
+&amp;#40;def system
+ ...
+ :my-functioner &amp;#40;my-functionner&amp;#41;
+ :something-else &amp;#40;component/using
+                   &amp;#40;something-else&amp;#41;
+                   &amp;#91;:my-functionner ...&amp;#93;&amp;#41;&amp;#41;
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;Protocols have the inherent problem of requiring state, since they can only be used with an object. Even if the type/record defines no state internally, &lt;i&gt;lifecycle state itself must be taken into consideration&lt;/i&gt;. Unlike a function or multimethod, which is effectively available once its namespace is required, protocol functions cannot be used before an object is created or after it's destroyed. Plus, the object must be passed around everywhere it's used, cluttering up argument lists and adding to naming overhead everywhere.&lt;/p&gt;&lt;p&gt;For bonus complexity, non-default constructors are extremely common additions, and once people have a type/record with a lifecycle, they add it to their initialization system, so they end up writing a bunch of extra Component/Integrant/etc code to support it, too.&lt;/p&gt;&lt;p&gt;&lt;strong&gt;Is all this worth it?&lt;/strong&gt; How many protocols have you seen that exist &lt;i&gt;just&lt;/i&gt; to support testing and nothing else?&lt;/p&gt;&lt;h2 id=&quot;solution:&amp;#95;dynamic&amp;#95;redef&quot;&gt;Solution: dynamic redef&lt;/h2&gt;&lt;p&gt;The solution I've settled on is &lt;a href='https://medium.com/helpshift-engineering/a-study-in-parallelising-tests-b5253817beae'&gt;one created by Mourjo Sen&lt;/a&gt; and I think it deserves to be more widely known. It's encapsulated in a mini-library called &lt;a href='https://clojars.org/me.mourjo/dynamic-redef'&gt;dynamic-redef&lt;/a&gt;.&lt;/p&gt;&lt;p&gt;The basic idea is to mimic the propagated thread-local behavior of &lt;code&gt;binding&lt;/code&gt; without having to declare anything &lt;code&gt;&amp;#94;:dynamic&lt;/code&gt; or mess with our main code. It uses &lt;code&gt;alter-var-root&lt;/code&gt; to permanently replace the root definition of a function with one that looks up its current definition in a &lt;code&gt;&amp;#94;:dynamic&lt;/code&gt; map but falls back to the original definition if no overrides are found. Then &quot;dynamically redefining&quot; a function involves adding a new binding frame under the hood with updated fn definitions for the dynamic function lookup map.&lt;/p&gt;&lt;p&gt;Here's his original gist of the technique: &lt;script src=&quot;https://gist.github.com/mourjo/387e78fcb62ab67392115c2ed616c9ab.js&quot;&gt;&lt;/script&gt;&lt;/p&gt;&lt;p&gt;Advantages:&lt;/p&gt;&lt;ol&gt;&lt;li&gt;Allows you to leave your main code &lt;i&gt;completely&lt;/i&gt; unaltered&lt;/li&gt;&lt;li&gt;Incurs no performance penalty in production code&lt;/li&gt;&lt;li&gt;Replaces definitions in a more thread-safe manner than raw &lt;code&gt;with-redefs&lt;/code&gt;&lt;/li&gt;&lt;/ol&gt;&lt;p&gt;Disadvantages:&lt;/p&gt;&lt;ol&gt;&lt;li&gt;Does not play well with background threads (though you should avoid those in tests when possible)&lt;/li&gt;&lt;li&gt;Like &lt;code&gt;binding&lt;/code&gt;, does not work with plain Java threading, which doesn't use Clojure thread frames&lt;/li&gt;&lt;/ol&gt;&lt;h3 id=&quot;summary&quot;&gt;Summary&lt;/h3&gt;&lt;p&gt;This is not meant to eliminate testing-specific protocols/records, but to offer an option that's more suitable in some use cases. My personal &quot;middle way&quot; of testing is, examine the thing to be mocked and determine if it has inherent state. If so, it's probably a better fit for protocols. But if not, don't complicate your code just to test it. Give dynamic redef a try. It may be unfamiliar, but it's simpler than the alternatives when it fits.&lt;/p&gt;&lt;h6 id=&quot;footnotes&quot;&gt;Footnotes&lt;/h6&gt;&lt;ol class='footnotes'&gt;&lt;li id='fn-1'&gt;Code Complete has &lt;a href='https://amartester.blogspot.com/2007/04/bugs-per-lines-of-code.html'&gt;some industry-generated estimates on bugs/LOC&lt;/a&gt;, but the much-discussed study, &lt;a href='https://cacm.acm.org/magazines/2017/10/221326-a-large-scale-study-of-programming-languages-and-code-quality-in-github/fulltext'&gt;A Large-Scale Study of Programming Languages and Code Quality in Github&lt;/a&gt;, actually computed the overall effect of code size (independent of language) as a control variable. If you look at the discussion of the control variables in Table 6, &quot;...they are all positive and significant&quot;. All else being equal, less code means fewer bugs.&lt;a href='#fnref1'&gt;&amp;#8617;&lt;/a&gt;&lt;/li&gt;&lt;li id='fn-2'&gt;Technically, you don't have to declare a var &lt;code&gt;&amp;#94;:dynamic&lt;/code&gt; to use &lt;code&gt;binding&lt;/code&gt; on it. There's an undocumented &lt;code&gt;.setDynamic&lt;/code&gt; method on vars, but to use this dark art successfully, you'd have to invoke it before the compiler gets to any call sites with the var. Otherwise, it'll compile a call to the root definition, and never check for binding frames. I've seen some code that claims to do this reliably via macros, but it doesn't seem to work for me.&lt;a href='#fnref2'&gt;&amp;#8617;&lt;/a&gt;&lt;/li&gt;&lt;/ol&gt;
+</description>
+<pubDate>
+Wed, 22 Jun 2022 00:00:00 +0700
+</pubDate>
+</item>
+<item>
+<guid>
+http://www.modulolotus.net/posts/2019-05-03-my-fav-idm/
+</guid>
+<link>
+http://www.modulolotus.net/posts/2019-05-03-my-fav-idm/
+</link>
+<title>
+Arrhythmic Beats - IDM
+</title>
+<description>
+&lt;p&gt;I promised a friend at a coffee shop I'd write up a list of my thoughts on IDM, aka &quot;Intelligent Dance Music&quot;. It only took a year, but here it is.&lt;/p&gt;&lt;p&gt;The term “Intelligent Dance Music” emerged in the early 90s to describe a lot of the &lt;a href='https://warp.net/'&gt;Warp&lt;/a&gt; label’s artists. At the time, Warp was aiming for a post-club, at-home kind of music. The idea was that the music had too many beats to be ambient, but was usually too rhythmically complex to actually be danced to. (While many of the artists involved dislike the term, no better term ever stuck. For a hot moment in the late 90’s, it seemed like it would be “electronica”, but that was broader in scope, and didn’t last.)&lt;/p&gt;&lt;p&gt;Many of the artists seem to follow a certain progression: over time they become ever more experimental, and the music becomes more skittery and abstract. I &lt;em&gt;personally&lt;/em&gt; love when artists successfully walk the fine line between ambient and dance, hooks and experiments, so I tend to favor most artists’ early/middle work. I personally believe that music should have a visceral component, that becoming too experimental robs it of something in favor of a head-heavy approach, and my reviews reflect that. But that’s just me.&lt;/p&gt;&lt;p&gt;What follows are my personal favorite IDM artists and albums from that era, with random notes and asides.&lt;/p&gt;&lt;h2 id=&quot;aphex&amp;#95;twin&quot;&gt;Aphex Twin&lt;/h2&gt;&lt;p&gt;Richard D. James is amazingly talented, but also a bit of a cheeky wanker. He once lived in an old bank vault and drove a tank around town.&lt;/p&gt;&lt;ul&gt;&lt;li&gt;&lt;a href='https://open.spotify.com/album/43s2fKRQsOSB6rSrxtAXKK?si=3dqIsPVrQHSOncZYy2xgxQ'&gt;Richard D. James Album&lt;/a&gt; - this is the one that kicked it off for me. Growing up in southern Virginia, I’d never heard anything like it. This is still my favorite era of Aphex Twin.&lt;/li&gt;&lt;li&gt;&lt;a href='https://open.spotify.com/album/0VG7XLJ8gSynEQDVnpHNNU?si=gsi06xUsQSmzGhqivTO1EA'&gt;...I Care Because You Do&lt;/a&gt; - the album that preceded Richard D James, and similar in style. (Also check out the unreleased Melodies From Mars if you like this period.)&lt;/li&gt;&lt;li&gt;&lt;a href='https://open.spotify.com/album/7aNclGRxTysfh6z0d8671k?si=wVQqkx0vQ0iPAKbN-5TVaQ'&gt;Selected Ambient Works 85-92&lt;/a&gt; - his first album is very danceable, since much of it was written when he was a teenage DJ.&lt;/li&gt;&lt;li&gt;&lt;a href='https://open.spotify.com/album/17vHPMmoxN5B8cdhCDeMTe?si=Wpk-ldBiSweyRIcHb83vmQ'&gt;Selected Ambient Works 2&lt;/a&gt; - the album that made him famous - More ambient in tone, but with many interesting experiments that go way beyond Eno’s original ambient concepts.&lt;/li&gt;&lt;/ul&gt;&lt;p&gt;Aphex Twin had multiple aliases, including AFX and Polygon Window. His own label released a zillion Analog Bubblebath compilations.&lt;/p&gt;&lt;h2 id=&quot;boards&amp;#95;of&amp;#95;canada&quot;&gt;Boards of Canada&lt;/h2&gt;&lt;p&gt;Despite the name, they’re a couple of Scottish dudes who made music for sitting around the campfire with their art collective. Apparently they were big fans of the Film Board of Canada.&lt;/p&gt;&lt;ul&gt;&lt;li&gt;&lt;a href='https://open.spotify.com/album/1vWnB0hYmluskQuzxwo25a?si=p5_2Ea94QxCZAX8gzciSqQ'&gt;Music Has the Right to Children&lt;/a&gt; - their first album, and their best. They coaxed a warmth rarely heard from electronic instruments.&lt;/li&gt;&lt;li&gt;&lt;a href='https://open.spotify.com/album/0LDCQOBp7NFjkD1LbuusCG?si=25vz5CJJRFGVfHvumzjHIg'&gt;Twoism&lt;/a&gt; - an early EP off the Skam label, quite good&lt;/li&gt;&lt;/ul&gt;&lt;h2 id=&quot;autechre&quot;&gt;Autechre&lt;/h2&gt;&lt;p&gt;Why these guys weren’t bigger, I’ve never understood. Both Aphex and Boards of Canada achieved breakout success, but not Autechre. The rumor was their name was short for “Audio Technology Research”, but they claimed the name was formed starting with “au” and then bashing the keyboard, which makes more sense, given their song titles.&lt;/p&gt;&lt;ul&gt;&lt;li&gt;&lt;a href='https://open.spotify.com/album/4KROnLN6Didp0F97RXaW7a?si=ZleIiQ_kQh-j0K2Y9jMVQg'&gt;Incunabula&lt;/a&gt; - their first album, and one of their best.&lt;/li&gt;&lt;li&gt;&lt;a href='https://open.spotify.com/album/7EfhvG3RwdhzXrFlkDVxg4?si=m2IXR3UTSU2wyRDxi7afEw'&gt;Amber&lt;/a&gt; - their followup album, and a bit more gentle rhythmically.&lt;/li&gt;&lt;li&gt;&lt;a href='https://open.spotify.com/album/0ioIXXMV89w0qC39FpxYnL?si=f6iiopZ5TIe8GoEJ55W8Ow'&gt;Tri Repetae&lt;/a&gt; - pretty good&lt;/li&gt;&lt;li&gt;&lt;a href='https://open.spotify.com/album/6UcShvT8JIKOaHj39k6A8f?si=nF4oeKGfRqeiitGobA6r2Q'&gt;Anvil Vapre&lt;/a&gt; - a harsh, almost metal version of their sound&lt;/li&gt;&lt;li&gt;&lt;a href='https://open.spotify.com/album/31nThm3LyQVvrndqxhvjWl?si=E3d0O8zAQIqBYFMGfsp1Tw'&gt;Garbage&lt;/a&gt; - lush, more ambient, and one of the most beautiful things they ever created. I used to put this on after raves, and I forever associate it with driving back from one party the next morning in the rain while my friends snoozed in the car.&lt;/li&gt;&lt;li&gt;&lt;a href='https://open.spotify.com/album/7zlbMdBS3J2YQRDuMMT9u4?si=RY43hCupQ5C4WGU2_8RNog'&gt;LP5&lt;/a&gt; - a transitional record. Some tracks are fantastic, like &lt;a href='https://open.spotify.com/track/4tBC5l4AkqYfQ5CCx5IrKm?si=awCYIrUBTAS9kIMXRBqMug'&gt;Rae&lt;/a&gt; and &lt;a href='https://open.spotify.com/track/770zYtbMuU5grFPUIzxmfQ?si=-IYACGkgRwKQP9QNSQbcrQ'&gt;Corc&lt;/a&gt;, but overall, this marks Autechre’s shift into more experimental realms&lt;/li&gt;&lt;/ul&gt;&lt;p&gt;Also worth hunting down are shadowy Gescom releases (rumored to be short for Gestalt Communications), which Ae frequently contributed to.&lt;/p&gt;&lt;p&gt;Fun little fact: they released an album, &lt;em&gt;Anti&lt;/em&gt;, in response to a law criminalizing parties in Britain with a &quot;succession of repetitive beats&quot; by removing all repetition. It came with a sticker attesting to its legality, but suggested you still have a lawyer present just in case.&lt;/p&gt;&lt;h2 id=&quot;plaid&amp;#95;/&amp;#95;the&amp;#95;black&amp;#95;dog&quot;&gt;Plaid / The Black Dog&lt;/h2&gt;&lt;p&gt;While two different bands, they were originally one. Two of the founders of The Black Dog split off to make Plaid. They were associated with Bjork, and Plaid’s remix of her song, &lt;a href='https://open.spotify.com/track/2ctHJYdYUsVPlJzhtQe6Jw?si=BEScs4pQQU6UOQqIvCFfzQ'&gt;All Is Full of Love&lt;/a&gt;, is well worth a listen.&lt;/p&gt;&lt;ul&gt;&lt;li&gt;&lt;a href='https://open.spotify.com/album/5O4LYrdtTr4nMnkn2GwP74?si=FKFg5GzzTyO_M5Jse5hoAg'&gt;Not For Threes&lt;/a&gt; - first album, standouts are &lt;a href='https://open.spotify.com/track/70jjCa99FYeC4xvUmZy3Vf?si=Va_b0t42RR6AhpjZSVfmUA'&gt;Myopia&lt;/a&gt;, &lt;a href='https://open.spotify.com/track/1sbTGYNgcr9YUSJoEY0oli?si=FZAxxmo5RdqJH7Ed6-ePyw'&gt;Kortisin&lt;/a&gt;, &lt;a href='https://open.spotify.com/track/7FRNVeofO8OL094wfOM9Le?si=u-qWxwXaTEKtCTkYo_e9GA'&gt;Prague Radio&lt;/a&gt;, &lt;a href='https://open.spotify.com/track/2ETmKAPTdY9DEIcWNo5IiZ?si=CHHPpNi3TtCTbPsBWQsUow'&gt;Rakimou&lt;/a&gt;, and &lt;a href='https://open.spotify.com/track/3nSfJkSb7xRtrtJMKohXGc?si=_3K1WdAhRbev6ONR67tn_A'&gt;Lilith&lt;/a&gt;, which Bjork guest vocals for&lt;/li&gt;&lt;li&gt;&lt;a href='https://open.spotify.com/album/4IkvCDzidC5XbElsN1SUsg?si=Qch2ygPKSnuCOxh8XFixoQ'&gt;Rest-Proof Clockwork&lt;/a&gt; - the follow-up, also pretty good&lt;/li&gt;&lt;li&gt;The Digging Remedy - I was fairly luke-warm to a lot of their 2000's output, but I recently listened to this and it was way better than I expected&lt;/li&gt;&lt;/ul&gt;&lt;h2 id=&quot;mouse&amp;#95;on&amp;#95;mars&quot;&gt;Mouse on Mars&lt;/h2&gt;&lt;p&gt;A couple of German fellows who crafted weird mixes of ambient, dub, and squiggly tunes. More playful than most artists of the era.&lt;/p&gt;&lt;p&gt;Check out &lt;a href='https://open.spotify.com/album/4Ev3UAEmQeMotvOS6w2CO1?si=Fsb4ucUzTSW2m9__OPYBUA'&gt;Autoditacker&lt;/a&gt; and &lt;a href='https://open.spotify.com/album/73ilzyuAD5B5fhPekLrYiz?si=QMlkOuGlTaOf9K1N3AiB_A'&gt;Niun Niggung&lt;/a&gt;. (Amusing little tidbit: a friend bought Autoditacker on vinyl, and didn’t notice it was supposed to be spun at 45 RPM instead of 33 1/3. But at 33 1/3, it has a really dank, funky vibe to it, so we kept playing it like that for a while.)&lt;/p&gt;&lt;h2 id=&quot;b12&quot;&gt;B12&lt;/h2&gt;&lt;p&gt;Kind of low-key, and heavily influenced by Detroit techno, their album &lt;a href='https://open.spotify.com/album/1jLV4B5W9rjB8VcsyhyuNA?si=g2SGLEYZRhKInhe06ZsIjQ'&gt;Time Tourist&lt;/a&gt; was a go-to whenever I wanted some chill IDM. &lt;a href='https://open.spotify.com/album/4qDcCVpOsd8V4MsmqZrPr1?si=kWLufwFGT6m3i0McBy3y6w'&gt;Electro-Soma&lt;/a&gt; is also pretty good, and collects a lot of their early EPs. Sometimes called themselves Musicology and Redcell.&lt;/p&gt;&lt;h2 id=&quot;compilations&quot;&gt;Compilations&lt;/h2&gt;&lt;ul&gt;&lt;li&gt;&lt;a href='https://open.spotify.com/album/34aK04FrYZGC4SMS3WEPIi?si=eRN-ypuxQ3C0wgx79oef5Q'&gt;Artificial Intelligence 1&lt;/a&gt; and &lt;a href='https://open.spotify.com/album/76RSvTjwI1rjqnqBb2TUXq?si=YuLHXIaPR6quJRAa_ShZNQ'&gt;2&lt;/a&gt; - the Warp compilations that announced the arrival of their sound. Features Aphex Twin (as Polygon Window), Autechre, B12 (as Musicology), The Black Dog (as IAO), and The Orb (as Dr Alex Patterson). Mix of more dance-y stuff along with the IDM they’d soon become known for.&lt;/li&gt;&lt;li&gt;&lt;a href='https://open.spotify.com/album/32tT9ncemGL0sjsYDoVTJb?si=av8Um4mMRuGnJ4dW5tAwEA'&gt;Warp10+3 Remixes&lt;/a&gt; - for their tenth anniversary, Warp released a double album of everyone remixing each other&lt;/li&gt;&lt;li&gt;We Are Reasonable People - a later-period Warp compilation, features a good overview of the label from the late 90s&lt;/li&gt;&lt;/ul&gt;&lt;h2 id=&quot;others&amp;#95;i&amp;#95;liked&quot;&gt;Others I liked&lt;/h2&gt;&lt;p&gt;These were all artists I listened to then, but have fallen by the wayside over the past twenty years. Some were big, some were obscure.&lt;/p&gt;&lt;ul&gt;&lt;li&gt;Matmos - &lt;a href='https://open.spotify.com/album/1g9Acy5gJWRBbybCQyMPzV?si=w2YjHZd6R7eChD9f20WV8Q'&gt;A Chance to Cut is a Chance to Cure&lt;/a&gt;&lt;/li&gt;&lt;li&gt;µ-Ziq - check out &lt;a href='https://open.spotify.com/album/5Rc5G86a4zX96HlyHYeGsX?si=GRKrAM0KREywv2QNWOEuWA'&gt;Lunatic Harness&lt;/a&gt;. His label, Planet Mu, released several IDM artists.&lt;/li&gt;&lt;li&gt;Arovane - bit like early Autechre&lt;/li&gt;&lt;li&gt;Pole - deep spacey minimalist dub, check out albums &lt;a href='https://open.spotify.com/album/5bWOl4J17QLviFkJYboxGL?si=ii0VCVz8Q22wdCtjmiJ8bw'&gt;3&lt;/a&gt; and &lt;a href='https://open.spotify.com/album/0ybb3fO4tWtCzu4VKieRhL?si=Jsl4SCuJRQ-cntUDW2R7wA'&gt;1&lt;/a&gt;&lt;/li&gt;&lt;li&gt;Future Sound of London - more on avant-techno/dance side&lt;/li&gt;&lt;li&gt;Plone - super-twee and cute, like Fisher-Price synths&lt;/li&gt;&lt;li&gt;The Orb - ambient house with a tinge of psychedelia, check out UFOrb and Orbus Terrarum&lt;/li&gt;&lt;li&gt;Plastikman - more on the techno side&lt;/li&gt;&lt;li&gt;LFO - more on the underground techno side, never released much material, but were very influential&lt;/li&gt;&lt;li&gt;Nightmares on Wax - more avant-techno, like LFO and Plastikman&lt;/li&gt;&lt;li&gt;Coil - dark, post-industrial&lt;/li&gt;&lt;/ul&gt;&lt;h3 id=&quot;others&amp;#95;i&amp;#95;never&amp;#95;personally&amp;#95;got&amp;#95;into,&amp;#95;but&amp;#95;who&amp;#95;knows,&amp;#95;maybe&amp;#95;you&amp;#95;will,&amp;#95;gentle&amp;#95;reader?&quot;&gt;Others I never personally got into, but who knows, maybe you will, gentle reader?&lt;/h3&gt;&lt;p&gt;Squarepusher, Prefuse 73, Oval, Fennesz, Venetian Snares, Bochum Welt, Two Lone Swordsmen, Daedalus, Luke Vibert, Meat Beat Manifesto&lt;/p&gt;&lt;h3 id=&quot;post-90s&quot;&gt;Post-90s&lt;/h3&gt;&lt;p&gt;Some of this stuff isn’t quite IDM, but may have been influenced by it.&lt;/p&gt;&lt;ul&gt;&lt;li&gt;Solvent - love this guy, check out &lt;a href='https://open.spotify.com/album/305f4DdbHl5PeKnlOewMgx?si=HZNXSf27TJu07FfDeBvtbg'&gt;Solvent City&lt;/a&gt;&lt;/li&gt;&lt;li&gt;Oneohtrix Point Never - love him, too!&lt;/li&gt;&lt;li&gt;Caribou&lt;/li&gt;&lt;li&gt;Ulrich Schnauss&lt;/li&gt;&lt;li&gt;Four Tet&lt;/li&gt;&lt;li&gt;Isan - same label as Solvent&lt;/li&gt;&lt;/ul&gt;&lt;p&gt;Also, if anything I linked to in Spotify says it's not from the 90's, that's a damn lie. Spotify can't seem to stop increasing album years whenever something is remastered or deluxed, which is mega-annoying when trying to follow an artist's trajectory.&lt;/p&gt;&lt;h2 id=&quot;oddities&amp;#95;and&amp;#95;rarities&quot;&gt;Oddities and Rarities&lt;/h2&gt;&lt;p&gt;One thing the artists of the time had a fetish for, was embedding images in spectrograms of their music. Plaid, Aphex Twin, Autechre and Venetian Snares all snuck this into their work. See &lt;a href='https://www.magneticmag.com/2012/08/the-aphex-face-visualizing-the-sound-spectrum/'&gt;Magnetic Mag&lt;/a&gt; for pics.&lt;/p&gt;&lt;p&gt;Another thing these artists had a fetish for, was unpronounceable track names. I can’t explain that other than to say it seemed more robot-like?&lt;/p&gt;&lt;p&gt;If you can track it down, Autechre made a great remix of Stereolab’s Miss Modular.&lt;/p&gt;&lt;p&gt;As mentioned above, Aphex Twin’s unreleased album Melodies From Mars is worth a download.&lt;/p&gt;&lt;p&gt;Autechre once released a MiniDisc-only album as Gescom, designed to take advantage of the MiniDisc’s ability to shuffle without gaps (which most CD players couldn’t do at the time). They made 88 super-short tracks meant to be shuffled seamlessly so you never heard the same album twice.&lt;/p&gt;&lt;p&gt;That's all, hope you enjoyed it!&lt;/p&gt;
+</description>
+<pubDate>
+Fri, 03 May 2019 00:00:00 +0700
+</pubDate>
+</item>
+<item>
+<guid>
+http://www.modulolotus.net/posts/2018-05-31-clojure-trie-performance/
+</guid>
+<link>
+http://www.modulolotus.net/posts/2018-05-31-clojure-trie-performance/
+</link>
+<title>
+A case study in refactoring Clojure trie code for performance 
+</title>
+<description>
+ &lt;p&gt;&lt;link rel=&quot;stylesheet&quot; href=&quot;/assets/chartist.min.css&quot; /&gt; &lt;link rel=&quot;stylesheet&quot; href=&quot;/assets/chart.css&quot; /&gt;     &lt;/p&gt;&lt;p&gt;Last summer, I was doing HackerRank for fun and whiteboard practice, and I came across &lt;a href=&quot;https://www.hackerrank.com/challenges/ctci-contacts/problem&quot;&gt;a nifty little trie exercise&lt;/a&gt;. The challenge was to add a list of contacts to a trie, and report on the number of contacts beginning with a list of prefixes.&lt;/p&gt;&lt;p&gt;I used my favorite language, Clojure, and quickly arrived at the correct solution, but many of these coding exercise sites have time constraints, and the idiomatic Clojure was too slow.&lt;/p&gt;&lt;p&gt;What follows is how you take beautiful Clojure, and accelerate it when needed. (NB: Only do this for hot paths, this is not general Clojure style advice.) All the code is available &lt;a href=&quot;https://github.com/KingMob/clojure-trie-performance&quot;&gt;here&lt;/a&gt;.&lt;/p&gt;&lt;h2 id=&quot;a_clojure_performance_journey&quot;&gt;A Clojure Performance Journey&lt;/h2&gt;&lt;p&gt;For those who don't recall, tries are specialized data structures that excel at storing data with common prefixes (e.g., words). Conceptually, it's a tree, where each node represents part of the prefix, and the complete path to a terminal node represents the data.&lt;/p&gt;&lt;p&gt;For a list of English words, the most straightforward implementation is a tree of nodes, where each node (other than the top) has a letter, a &lt;code&gt;terminal&lt;/code&gt; flag to indicate whether the node is the last letter in a word, and an array of 26 pointers to other nodes, representing the alphabet. (Various optimizations exist to compress long chains, but we will focus on this implementation for now.)&lt;/p&gt;&lt;p&gt;In this diagram, you can see a representation of a trie storing the words: a, ale, all, alley, are, art, at, and ate. (Terminal nodes are tinted.)&lt;/p&gt;&lt;p&gt;&lt;img src=&quot;/img/Clojure-trie-example.svg&quot; style=&quot;width: 50%; margin: 0 auto; display: block&quot; /&gt;&lt;/p&gt;&lt;h2 id=&quot;solutions&quot;&gt;Solutions&lt;/h2&gt;&lt;h4 id=&quot;standard_data_structures&quot;&gt;Standard data structures&lt;/h4&gt;&lt;p&gt;Here's the basic implementation. It has functions that add new words, locate the partial subtree with a given prefix, and count the number of words beginning with a prefix. In this example, &lt;code&gt;db&lt;/code&gt; is a series of nested hash-maps, and the &lt;code&gt;:*&lt;/code&gt; key indicates the node is terminal.&lt;/p&gt;&lt;pre&gt;&lt;code class=&quot;clojure&quot;&gt;(defn add [db name]
+  (update-in db (seq name) (fnil assoc {}) :* true))
+
+(defn count-terminations [db]
+  (let [terminations (if (:* db) 1 0)]
+    (reduce +
+            terminations
+            (map count-terminations
+                 (vals (dissoc db :*))))))
+
+(defn find-partial [db partial]
+  (println
+   (if-let [sub-db (get-in db (seq partial))]
+     (count-terminations sub-db)
+     0)))
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;This works, but was way too slow.&lt;/p&gt;&lt;h4 id=&quot;switch_to_eager_over_lazy_evaluation&quot;&gt;Switch to eager over lazy evaluation&lt;/h4&gt;&lt;p&gt;Clojure defaults to lazy evaluation, which requires a certain amount of overhead. What if we force eager evaluation with &lt;code&gt;transduce&lt;/code&gt; instead of &lt;code&gt;reduce&lt;/code&gt;?&lt;/p&gt;&lt;pre&gt;&lt;code class=&quot;clojure&quot;&gt;(defn count-terminations [db]
+  (let [terminations (if (:* db) 1 0)]
+    (transduce
+     (map count-terminations)
+     +
+     terminations
+     (vals db))))
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;That shaves off a few seconds, but still not good enough.&lt;/p&gt;&lt;h4 id=&quot;switch_to_a_record&quot;&gt;Switch to a record&lt;/h4&gt;&lt;p&gt;Alright, well, what about using a record with named fields and cache the default empty node?&lt;/p&gt;&lt;pre&gt;&lt;code class=&quot;clojure&quot;&gt;(declare default-alphabet-trie-node)
+
+(def empty-alphabet-vector (vec (repeat 26 nil)))
+
+(defrecord AlphabetTrieNode [val terminates? children]
+  TrieNode
+  (add-substring [n [c &amp;amp; cs]]
+    (-&amp;gt;AlphabetTrieNode
+     val
+     (if c terminates? true)
+     (if c
+       (update children
+               (alpha-idx c)
+               #(add-substring (if (nil? %)
+                                 (default-alphabet-trie-node c)
+                                 %)
+                               cs))
+       children)))
+
+  (prefix [n s]
+    (-&amp;gt;&amp;gt; s
+         (seq)
+         (map alpha-idx)
+         (interpose :children)
+         (cons :children)
+         (get-in n)))
+
+  (count-words [n]
+    (loop [word-count (if terminates? 1 0)
+           legit-children (filter some? children)]
+      (if (seq legit-children)
+        (let [[child &amp;amp; cs] legit-children]
+          (recur (+ word-count
+                    (if (:terminates? child) 1 0))
+                 (apply conj cs
+                        (filter some? (:children child)))))
+        word-count)))
+
+  (count-w-prefix [n s]
+    (if-let [subn (prefix n s)]
+      (count-words subn)
+      0)))
+
+(def default-alphabet-trie-node
+  (memoize
+   (fn [val]
+     (-&amp;gt;AlphabetTrieNode val false empty-alphabet-vector))))
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;Oof, no, the code is both slower and way more complicated. The performance benefit of records/types is that field access is much faster, which we'll exploit later.&lt;/p&gt;&lt;h2 id=&quot;algorithmic/data_change&quot;&gt;Algorithmic/data change&lt;/h2&gt;&lt;p&gt;OK, let's re-evaluate, profile, and rethink the problem. (Tweaking rarely beats using the right data structures/algorithms.) We can trade off a bit of memory to save a ton of computation time. Instead of recomputing the subtree count afresh each time, we can keep track of the word count at each node, and increase as we go. Every time we add a word, we just increment the count of each parent node by 1. Then, the &lt;code&gt;count&lt;/code&gt; operation for a prefix is just a read-out of the value at that node. &lt;/p&gt;&lt;p&gt;Just to check, I applied this to the original solution, and got a speed-up of 10x, but it still wasn't fast enough, and using records enables some unique JVM optimizations, so we'll continue with that. Here are the changed parts:&lt;/p&gt;&lt;pre&gt;&lt;code class=&quot;clojure&quot;&gt;(defrecord AlphabetTrieNode [val terminates? word-count children]
+  TrieNode
+  (add-substring [n [c &amp;amp; cs]]
+    (-&amp;gt;AlphabetTrieNode
+     val
+     (if c terminates? true)
+     (inc word-count)
+     (if c
+       (update children
+               (alpha-idx c)
+               (fnil #(add-substring % cs)
+                     (default-alphabet-trie-node c)))
+       children)))
+
+  (count-words [n]
+    word-count)
+
+  (count-w-prefix [n s]
+    (if-let [subn (prefix n s)]
+      (count-words subn)
+      0)))
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;Now this speeds up by a factor of 50, and is simpler to boot! We're getting closer. Takeaway: always, always use the right data structures/algorithms.&lt;/p&gt;&lt;h2 id=&quot;jvm_optimizations&quot;&gt;JVM optimizations&lt;/h2&gt;&lt;p&gt;Clojure uses immutable data by default, for simplicity, ease of reasoning, and thread safety. But immutable data structures have an inherent overhead when &quot;mutating&quot;: copies are unavoidable. What if we ditch immutability? &lt;/p&gt;&lt;h4 id=&quot;mutable_fields&quot;&gt;Mutable fields&lt;/h4&gt;&lt;p&gt;We can do this by adding metadata to fields indicating they're &lt;code&gt;volatile-mutable&lt;/code&gt;. They can then be directly mutated in code.&lt;/p&gt;&lt;pre&gt;&lt;code class=&quot;clojure&quot;&gt;(deftype AlphabetTrieNode [val
+                           ^:volatile-mutable terminates?
+                           ^:volatile-mutable word-count
+                           ^:volatile-mutable children]
+  TrieNode
+  (add-substring [n [c &amp;amp; cs]]
+    (set! word-count (inc word-count))
+    (if-not c
+      (set! terminates? true)
+      (let [i (alpha-idx c)
+            child (children i)]
+        (when-not child
+          (-&amp;gt;&amp;gt; c
+               (default-alphabet-trie-node)
+               (assoc children i)
+               (set! children)))
+        (add-substring (children i) cs))))
+
+  (prefix [n s]
+    (loop [curr n
+           [c &amp;amp; cs] s]
+      (if (and c curr)
+        (recur (get (.children curr) (alpha-idx c))
+               cs)
+        curr)))
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;Note the use of &lt;code&gt;set!&lt;/code&gt; in the mutable code. We're finally seeing subsecond execution time for this exercise.&lt;/p&gt;&lt;h4 id=&quot;thread-unsafe_with_type_hints&quot;&gt;Thread-unsafe with type hints&lt;/h4&gt;&lt;p&gt;What else can we do? Well, if we don't care about thread safety, we can switch to &lt;code&gt;unsynchronized-mutable&lt;/code&gt; fields to avoid concurrency overhead. We can also switch to Java primitives and arrays with type hints. (The &lt;code&gt;val&lt;/code&gt; field was also removed, since it's redundant to the &lt;code&gt;children&lt;/code&gt; index.)&lt;/p&gt;&lt;pre&gt;&lt;code class=&quot;clojure&quot;&gt;(deftype AlphabetTrieNode [^:unsynchronized-mutable terminates?
+                           ^:unsynchronized-mutable ^long word-count
+                           ^:unsychronized-mutable ^objects children]
+  TrieNode
+  (add-substring [n [c &amp;amp; cs]]
+    (set! word-count (inc word-count))
+    (if-not c
+      (set! terminates? true)
+      (let [i (int (alpha-idx c))
+            child (aget children i)]
+        (when-not child
+          (aset children i (default-alphabet-trie-node c)))
+        (add-substring (aget children i) cs))))
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;Great, we're down to a half second now, and fast enough for HackerRank's picky tests. Done!&lt;/p&gt;&lt;h2 id=&quot;alternatives&quot;&gt;Alternatives&lt;/h2&gt;&lt;p&gt;There are other performance-enhancing techniques that either didn't apply here or didn't have an effect on the speed in this particular case (e.g., reflection was never an issue here), or were just paths not taken.&lt;/p&gt;&lt;h4 id=&quot;transients&quot;&gt;Transients&lt;/h4&gt;&lt;p&gt;Transients are a way to use mutable data structures with code that has the same shape as your regular immutable code. Unfortunately, they do not work with records/types. They helped a bit with the hash-maps, but only by ~20%.&lt;/p&gt;&lt;h4 id=&quot;reflection_and_type-hints&quot;&gt;Reflection and type-hints&lt;/h4&gt;&lt;p&gt;If the compiler can't figure out what a data type is when invoking a method, it will slow things down massively. Use &lt;code&gt;(set! *warn-on-reflection* true)&lt;/code&gt; in a file to check. I tested this, but there was no reflection in the hot path.&lt;/p&gt;&lt;p&gt;Unfortunately, it's not really possible to type-hint protocol method parameters, and you can't defer to a regular helper function with mutable fields, since mutable fields are private. At that point, you may want to try another method or use &lt;code&gt;definterface&lt;/code&gt;.&lt;/p&gt;&lt;h4 id=&quot;loop/recur&quot;&gt;Loop/recur&lt;/h4&gt;&lt;p&gt;If a &lt;code&gt;loop&lt;/code&gt; or function returns a value in the tail position, the current stack frame can be safely overwritten with the new value. &lt;code&gt;recur&lt;/code&gt; can be used to avoid blowing up a deep stack, and it probably eased memory pressure here, but I didn't analyze its performance effect separately.&lt;/p&gt;&lt;h2 id=&quot;results&quot;&gt;Results&lt;/h2&gt;&lt;p&gt;Here are the raw results. The first four are for standard hash-maps, the remainder use records/types.&lt;/p&gt;&lt;p&gt;&lt;/p&gt;&lt;div class=&quot;ct-chart ct-perfect-fourth&quot;&gt;&lt;/div&gt;&lt;p&gt;Hope you found this useful. Thanks to David Nolen for the feedback!&lt;/p&gt;&lt;p&gt;&lt;script src=&quot;/assets/chartist.min.js&quot;&gt;&lt;/script&gt; &lt;script src=&quot;/assets/clojure-trie-performance-chart.js&quot;&gt;&lt;/p&gt;&lt;/script&gt;&lt;/p&gt;
+</description>
+<pubDate>
+Thu, 31 May 2018 00:00:00 +0700
+</pubDate>
+</item>
+<item>
+<guid>
+http://www.modulolotus.net/posts/2017-05-17-thoughts-on-cryptopals-1/
+</guid>
+<link>
+http://www.modulolotus.net/posts/2017-05-17-thoughts-on-cryptopals-1/
+</link>
+<title>
+Using Clojure for the Cryptopals cryptography challenges
+</title>
+<description>
+&lt;p&gt;I've been going through the &lt;a href='https://cryptopals.com/'&gt;Cryptopals challenges&lt;/a&gt; recently. For those who don't know, they're a series of exercises based on real-life cryptography breaks, and they're lots of fun. You can see my code &lt;a href='https://github.com/KingMob/cryptopals-crypto-challenges'&gt;here&lt;/a&gt;.&lt;/p&gt;&lt;p&gt;Clojure is one of my favorite languages, so I decided to tackle them with it. Here are some thoughts on the first 3 sets, plus a few issues I ran into along the way. I hope this helps anyone else going through them without giving too much away.&lt;/p&gt;&lt;h2 id=&quot;general&amp;#95;challenge&amp;#95;notes&quot;&gt;General challenge notes&lt;/h2&gt;&lt;h3 id=&quot;challenge&amp;#95;3&amp;#95;-&amp;#95;single-byte&amp;#95;xor&amp;#95;cipher&quot;&gt;Challenge 3 - Single-byte XOR cipher&lt;/h3&gt;&lt;p&gt;When doing frequency analysis, the instructions make no mention of the chi-squared statistic, though that's probably a good starting point, and generalizes beyond alphabetic frequencies to any expected distribution. You can use it later when detecting ECB vs CBC, since you can use it to detect deviations from uniformity.&lt;/p&gt;&lt;h3 id=&quot;challenge&amp;#95;7&amp;#95;-&amp;#95;aes&amp;#95;in&amp;#95;ecb&amp;#95;mode&quot;&gt;Challenge 7 - AES in ECB mode&lt;/h3&gt;&lt;p&gt;The instructions &lt;em&gt;do&lt;/em&gt; mention this, but after chatting with someone else doing the challenges, realize that you do &lt;em&gt;not&lt;/em&gt; need to write AES yourself. Just use a default implementation for your language. You only need the single block transform (ECB), which you'll use to build on top of. For Java, all you need is javax.crypto.Cipher and SecretKeySpec, using &quot;AES/ECB/NoPadding&quot;.&lt;/p&gt;&lt;h3 id=&quot;challenge&amp;#95;9&amp;#95;-&amp;#95;implement&amp;#95;pkcs#7&amp;#95;padding&quot;&gt;Challenge 9 - Implement PKCS#7 padding&lt;/h3&gt;&lt;p&gt;When implementing PKCS#7 padding, the instructions make no mention of what to do when your data lines up perfectly on a block boundary. Only later, when doing the padding oracle challenge, did I realize you have to add an entire padding block (sixteen 16's) in that case.&lt;/p&gt;&lt;h3 id=&quot;challenge&amp;#95;17&amp;#95;-&amp;#95;the&amp;#95;cbc&amp;#95;padding&amp;#95;oracle&quot;&gt;Challenge 17 - The CBC padding oracle&lt;/h3&gt;&lt;p&gt;When altering the first byte of a block to see if it produces valid padding, you're aiming to alter it such that the padding ends in a single 1 byte. But &lt;em&gt;remember&lt;/em&gt;, if you test the &lt;em&gt;original, unaltered&lt;/em&gt; byte, you will &lt;em&gt;also&lt;/em&gt; get valid PKCS#7 padding (since it was correct to begin with), which is probably not 1.&lt;/p&gt;&lt;h3 id=&quot;challenge&amp;#95;18&amp;#95;-&amp;#95;implement&amp;#95;ctr,&amp;#95;the&amp;#95;stream&amp;#95;cipher&amp;#95;mode&quot;&gt;Challenge 18 - Implement CTR, the stream cipher mode&lt;/h3&gt;&lt;p&gt;Look carefully at the examples. At first glance it looks as if you're XORing a bunch of zeros, but the ninth byte is actually incrementing.&lt;/p&gt;&lt;h3 id=&quot;challenge&amp;#95;23&amp;#95;-&amp;#95;clone&amp;#95;an&amp;#95;mt19937&amp;#95;rng&amp;#95;from&amp;#95;its&amp;#95;output&quot;&gt;Challenge 23 - Clone an MT19937 RNG from its output&lt;/h3&gt;&lt;p&gt;Inverting the &lt;a href='https://en.wikipedia.org/wiki/Mersenne_Twister'&gt;Mersenne Twister&lt;/a&gt;'s temper function has a computationally simple version. It's not necessary to use brute force, inverse matrix multiplication, or a constraint solver. It can be done with just bit operations. The key insight is that XORing an integer with a shifted version of itself results in many of the bits in the output being identical (since the shifted-in bits are 0). You can then shift &lt;em&gt;those&lt;/em&gt; bits and XOR again to obtain &lt;em&gt;more&lt;/em&gt; bits, repeating until you have the whole thing.&lt;/p&gt;&lt;h2 id=&quot;clojure&amp;#95;/&amp;#95;java-specific&amp;#95;issues&quot;&gt;Clojure / Java-specific issues&lt;/h2&gt;&lt;h3 id=&quot;poor&amp;#95;primitive&amp;#95;support&amp;#95;in&amp;#95;jvm&amp;#95;and&amp;#95;clojure&quot;&gt;Poor primitive support in JVM and Clojure&lt;/h3&gt;&lt;p&gt;The bread and butter of cryptography is byte-level manipulation. Unfortunately, the JVM treats bytes as second-class citizens (e.g., many methods on Integer/Long have no Byte counterpart), and lacks support for unsigned integer types. On top of this, Clojure defaults to 64-bit longs everywhere, necessitating a lot of conversion. I ended up writing many conversion routines just for basic support, and leaving integers in the default long type for compatibility.&lt;/p&gt;&lt;p&gt;The single biggest thing to watch for was when I got deep into bit-shifting code while building the &lt;a href='https://en.wikipedia.org/wiki/Mersenne_Twister'&gt;Mersenne Twister&lt;/a&gt; random number generator. When everything is a long, unsigned right bit shifts &lt;strong&gt;will not do what you expect&lt;/strong&gt;. The 32-bit version of the Mersenne Twister (MT) relies on unsigned 32-bit ints. But unsigned shifting adds zeros at the end, which, if you're using a larger data type, will result in the zeros entering &lt;em&gt;above&lt;/em&gt; the bits of interest. E.g., consider the case where all bits are set to 1 (in two's complement, this is -1), and you do an unsigned shift right by 16 bits. You &lt;em&gt;want&lt;/em&gt;:&lt;/p&gt;&lt;p&gt;&lt;code&gt;00000000000000001111111111111111&lt;/code&gt;&lt;/p&gt;&lt;p&gt;but you &lt;em&gt;get&lt;/em&gt;:&lt;/p&gt;&lt;p&gt;&lt;code&gt;0000000000000000111111111111111111111111111111111111111111111111&lt;/code&gt;&lt;/p&gt;&lt;p&gt;Since you only want the right-most 32 bits, it appears as if shifting had no effect!&lt;/p&gt;&lt;h2 id=&quot;final&amp;#95;thoughts&quot;&gt;Final Thoughts&lt;/h2&gt;&lt;ol&gt;&lt;li&gt;Some of these ciphers are so broken, I'm amazed they were ever used. Apparently, the simple substitution cipher (replace each letter with the letter &lt;em&gt;n&lt;/em&gt; higher) was in use as late as 1915 by the Russian army, despite frequency analysis having been described a millennia (!) earlier.&lt;/li&gt;&lt;li&gt;Almost everything decrypts to Vanilla Ice lyrics. Unfortunately, there's probably nothing hidden in &lt;em&gt;them&lt;/em&gt;.&lt;/li&gt;&lt;/ol&gt;
+</description>
+<pubDate>
+Wed, 17 May 2017 00:00:00 +0700
+</pubDate>
+</item>
+<item>
+<guid>
+http://www.modulolotus.net/posts/2017-03-28-setting-up-algo/
+</guid>
+<link>
+http://www.modulolotus.net/posts/2017-03-28-setting-up-algo/
+</link>
+<title>
+Using Algo to setup the strongSwan VPN
+</title>
+<description>
+&lt;p&gt;Recently, it was in the news that &lt;a href='https://www.washingtonpost.com/news/the-switch/wp/2017/03/28/the-house-just-voted-to-wipe-out-the-fccs-landmark-internet-privacy-protections/'&gt;Congress declined to prevent ISPs from requiring consumer opt-in before &lt;del&gt;spying on you&lt;/del&gt; selling your browsing history to advertisers&lt;/a&gt;. Of course, the rule they're trying to kill hasn't even been applied yet, so ISPs do this currently &lt;em&gt;anyway&lt;/em&gt;. Browser extensions like &lt;a href='https://www.eff.org/https-everywhere'&gt;HTTPS Everywhere&lt;/a&gt; help, since with HTTPS, ISPs can only see what domains you connect to, but even that's a bit much.&lt;/p&gt;&lt;p&gt;The natural solution is a VPN. Tunnel all your traffic through another server, and there's nothing for an ISP or malicious coffee shop to spy on. There's no shortage of commercial VPNs offering their services, but all of them require that you trust them over your ISP. This might be reasonable, or it might not be. Personally, I already &lt;em&gt;had&lt;/em&gt; a server set up for this website, so I decided to add a VPN to it.&lt;/p&gt;&lt;p&gt;I used &lt;a href='https://blog.trailofbits.com/2016/12/12/meet-algo-the-vpn-that-works/'&gt;Algo&lt;/a&gt;, since I'm not a strongSwan configuration expert, and it promised to get me up and running quickly. By default, it creates a brand-new server, which is simpler, but it supports existing servers, too, albeit with less support. What follows are the steps I took to make it work on an existing Ubuntu 16.10 server on Vultr. Hopefully this helps.&lt;/p&gt;&lt;h2 id=&quot;algo&quot;&gt;Algo&lt;/h2&gt;&lt;p&gt;Algo runs as a shell script which collects some info and then runs a series of Ansible playbooks. To get started, just run:&lt;/p&gt;&lt;pre&gt;&lt;code class=&quot;shell&quot;&gt;$ ./algo
+
+  What provider would you like to use?
+    1. DigitalOcean
+    2. Amazon EC2
+    3. Google Compute Engine
+    4. Microsoft Azure
+    5. Install to existing Ubuntu server
+
+Enter the number of your desired provider
+: 5
+
+...
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;Select your options, and if all goes well, great! You can stop reading this post. (See &lt;a href='https://github.com/trailofbits/algo'&gt;Algo's docs&lt;/a&gt; for more.)&lt;/p&gt;&lt;h2 id=&quot;problems&amp;#95;i&amp;#95;encountered&quot;&gt;Problems I Encountered&lt;/h2&gt;&lt;h3 id=&quot;root&amp;#95;login&amp;#95;is&amp;#95;disabled&quot;&gt;Root login is disabled&lt;/h3&gt;&lt;p&gt;I disabled root login, and do everything through my personal user with &lt;code&gt;sudo&lt;/code&gt;. However, Algo really expects to run as root. To fix this, open up the &lt;code&gt;ansible.cfg&lt;/code&gt; file, and add the privilege escalation section:&lt;/p&gt;&lt;pre&gt;&lt;code class=&quot;ini&quot;&gt;&amp;#91;privilege&amp;#95;escalation&amp;#93;
+become = True
+become&amp;#95;user = root
+become&amp;#95;ask&amp;#95;pass = True
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;If you allow root login, there should be no need for the above step.&lt;/p&gt;&lt;h3 id=&quot;ssh&amp;#95;connection&amp;#95;errors&quot;&gt;SSH connection errors&lt;/h3&gt;&lt;p&gt;I added the server's SSH key to ssh-agent, but for some inexplicable reason, Algo couldn't connect. After trying half a dozen possibilities, the culprit turned out to be the SSH option, &lt;code&gt;-o IdentitiesOnly=yes&lt;/code&gt;. This forces SSH to use only identities in the main &lt;code&gt;&amp;#126;/.ssh/config&lt;/code&gt; file or passed-in on the command-line. But since I created a special keypair just for Vultr, it can't use it. The solution is to remove &lt;code&gt;-o IdentitiesOnly=yes&lt;/code&gt; from &lt;code&gt;ssh&amp;#95;args&lt;/code&gt; in &lt;code&gt;ansible.cfg&lt;/code&gt;.&lt;/p&gt;&lt;h3 id=&quot;firewall&amp;#95;issues&quot;&gt;Firewall issues&lt;/h3&gt;&lt;p&gt;After Algo completed, my monitoring service immediately blew up my phone to tell me the website was down. Turns out, it disabled UFW, and with it, my web server firewall ports. Luckily the fix for that was just a simple re-enable on the server:&lt;/p&gt;&lt;pre&gt;&lt;code class=&quot;shell&quot;&gt;sudo ufw enable
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;(Note: UFW won't show the VPN's firewall rules, but iptables will.)&lt;/p&gt;&lt;p&gt;Finally, for Vultr, they (wisely) set up an external firewall available for instances. This is generally a good idea, but trying to match it to the rules necessary for the VPN is a lot of work, so the final thing to do is to disable the firewall from the Vultr control panel. &lt;strong&gt;Be sure your firewall is set up correctly on the server first.&lt;/strong&gt;&lt;/p&gt;
+</description>
+<pubDate>
+Tue, 28 Mar 2017 00:00:00 +0700
+</pubDate>
+</item>
+<item>
+<guid>
+http://www.modulolotus.net/posts/2014-07-11-premature-optimization/
+</guid>
+<link>
+http://www.modulolotus.net/posts/2014-07-11-premature-optimization/
+</link>
+<title>
+Premature optimization is the root of all hair loss
+</title>
+<description>
+&lt;p&gt;When faced with a need to speed up code, the general advice is to profile it to get an accurate picture of where time is being spent. Many of you have heard by now the old Knuth quote, &quot;Premature optimization is the root of all evil.&quot; While I usually remember this, what follows is a bit of a cautionary tale of what happens when you &lt;em&gt;think&lt;/em&gt; you know where the slowdown is (or will be), instead of bothering to actually find out.&lt;/p&gt;&lt;h2 id=&quot;the&amp;#95;puzzle&quot;&gt;The puzzle&lt;/h2&gt;&lt;p&gt;A while back, I decided to tackle Spotify's online puzzles. You can see my solutions &lt;a href='https://github.com/KingMob/Spotify-puzzles'&gt;here&lt;/a&gt;. The way it worked was, you coded up your answer in either C, C++, Python or Java, mailed it off to an automatic judge, and would then get a response back telling you if it failed on some input or wasn't fast enough. Two of the problems were quite easy, but the last turned out to be tricky, &lt;em&gt;though not as tricky as I made it&lt;/em&gt;.&lt;/p&gt;&lt;p&gt;You can see an archive of the puzzle page &lt;a href='/supplemental/Bilateral%20Projects%20Puzzlecool%20-%20Spotify.html'&gt;here&lt;/a&gt;. The basic problem is that there are a bunch of Spotify employees in either New York or Sweden, and every employee in one location is a member of one or more paired teams with an employee in the other location. There's an upcoming Spotify meeting in Barbados, and someone from every team needs to be there to represent the team. To keep travel costs down, Spotify wants to determine the smallest set of people it needs to have all teams represented.&lt;/p&gt;&lt;p&gt;Now, some of you who took an algorithms class recently may already recognize the problem, but for the rest of us, the structure is that of a bipartite graph, a graph where every vertex (person) can be divided up into two groups (location), and every edge (team) is only &lt;em&gt;between&lt;/em&gt; the groups, and never &lt;em&gt;within&lt;/em&gt; one. The problem of determining the minimal set of vertices that is attached to every edge is called the minimum vertex cover problem, and for bipartite graphs, Konig's theorem demonstrated that it's equivalent to a finding a maximum matching, which is the largest set(s) of edges that don't share any vertices.&lt;/p&gt;&lt;p&gt;Clearly, such a problem with deep roots in graph theory requires proper selection of the appropriate algorithm, right?&lt;/p&gt;&lt;h2 id=&quot;the&amp;#95;algorithms&quot;&gt;The algorithms&lt;/h2&gt;&lt;p&gt;I originally started in Java with a naive algorithm, continually picking the person who was on the most remaining teams. It seemed to work on the two small examples listed on the problem page, so I submitted it and... no, it gave incorrect answers. Well, I didn't have access to Spotify's test data, so I started making my own. I quickly realized that my solution must have been &lt;em&gt;way&lt;/em&gt; off when it returned a list of people that exceeded the total number of employees in one country. Without even knowing the details of my randomly-generated data set, I knew that was wrong, because I could have sent fewer people by just choosing everyone in New York or Sweden. HR would have hated my solution as much as the employees would have loved it.&lt;/p&gt;&lt;p&gt;Since the naive solution wasn't working, I knew there had to be more to the problem, so, I started digging around and found out it was a bipartite maximum matching graph problem. After that, I scanned the literature to choose the &quot;right&quot; algorithm. The Hopcroft-Karp algorithm has the best time, with an O(E√V) worst-case time, where E is the number of edges, and V is the number of vertices. But I chose the relabel-to-front variant of the push-relabel max-flow algorithm (Cormen et al, Introduction to Algorithms, 3rd ed., pp. 748), since according to some empirical papers (Cherkassky 1998; Setubal 1996), it outperforms the Hopcroft-Karp algorithm in practice, despite having a O(V&lt;sup&gt;3&lt;/sup&gt;) running time. It's one of the more complicated algorithms to code, but I was convinced algorithmic performance would be an issue. I wrote a Java version, submitted it, and... success, it returned correct answers for all inputs but wait... the automatic judge said it's too slow.&lt;/p&gt;&lt;p&gt;Hmm, maybe I needed to use the bipush selection variant to improve push-relabel performance. Code code code. Nope, still too slow. Maybe I should have tried the Hopcroft-Karp variant after all? I started on that, but then I thought, well, the problem size is actually pretty small, and big-O performance is only guaranteed asymptotically, so maybe the running time is being dominated by incidental overhead. Instead of pausing to consider, I wrote a simpler breadth-first search (BFS) for augmenting paths.&lt;/p&gt;&lt;p&gt;Nope, still too slow.&lt;/p&gt;&lt;h2 id=&quot;the&amp;#95;&quot;eureka&quot;&amp;#95;moment&quot;&gt;The &quot;Eureka&quot; moment&lt;/h2&gt;&lt;p&gt;At this point, I wanted to &lt;code&gt;kill -9&lt;/code&gt; some server process in Sweden. &lt;strong&gt;But instead, I did what I should have done from the start: profiled.&lt;/strong&gt; The vertex selection algorithm took only ~200 ms on the largest problem size. Push-relabel and BFS were not too far apart. The remaining setup and I/O only added a bit more to the execution time. What was going on?&lt;/p&gt;&lt;p&gt;Then finally, a horrific realization started to dawn on me. The code judge wasn't examining the algorithmically-interesting parts of my code (how could it?), it was just timing the whole thing from start to finish. So, with a feeling of dread in my stomach, I clocked the whole thing with the maximum problem size from the command-line and it took 5 seconds, only ~400 ms of which was my code. &lt;strong&gt;The entire time was dominated by Java start-up; algorithms were completely irrelevant for the specified problem size.&lt;/strong&gt; At this point, everyone in the coffee shop probably heard me curse.&lt;/p&gt;&lt;p&gt;So what did I do? Well, I considered teaching myself Python, which I thought would be fun, but I suspected it might suffer the same startup overhead. In the end, I rewrote the entire thing using the BFS algorithm in C++, which I hadn't used since college. I submitted it and finally... success!&lt;/p&gt;&lt;h2 id=&quot;coda&quot;&gt;Coda&lt;/h2&gt;&lt;p&gt;What did I (re)learn?&lt;/p&gt;&lt;p&gt;&lt;strong&gt;Profile first.&lt;/strong&gt; Without knowing where/what to optimize, you're flying blind and possibly wasting time. Data trumps intuition in this case.&lt;/p&gt;
+</description>
+<pubDate>
+Fri, 11 Jul 2014 00:00:00 +0700
+</pubDate>
+</item>
+<item>
+<guid>
+http://www.modulolotus.net/posts/2014-06-08-setting-up-rails/
+</guid>
+<link>
+http://www.modulolotus.net/posts/2014-06-08-setting-up-rails/
+</link>
+<title>
+Setting up Rails 4.0.0 with Nginx and Postgres on Digital Ocean
+</title>
+<description>
+&lt;p&gt;I decided to tackle learning Ruby on Rails recently. I've heard great stuff about both Ruby and Rails, and have been curious to check them out for a while. I had just the little project, too: a site to help you locate restaurants offering free drink refills. See, in NYC, restaurants won't just give you another coke; oh no, they want to charge you another $2.00 for the privilege. Admittedly, soda is horrendous for you, but once in a while, I get a craving for serious sugar.&lt;/p&gt;&lt;h2 id=&quot;step&amp;#95;1:&amp;#95;hosting&quot;&gt;Step 1: Hosting&lt;/h2&gt;&lt;p&gt;Where to host? I've used Heroku in the past, and while it's great for ease of deployment, their database offerings jump straight from free and restrictive to really expensive. A database with any in-memory cache starts at $50/month, which is more than I feel like paying for a toy project. I considered AWS, but my free tier is expiring soon, and on top of that, I prefer Postgres, which RDS doesn't support. Given that this will be a geolocation-based app, I thought Postgres's PostGIS features would be worth trying. A friend recommended &lt;a href=&quot;http://www.digitalocean.com&quot; target=&quot;_blank&quot;&gt;Digital Ocean&lt;/a&gt;, and the pricing seemed right, so I gave it a shot. A few clicks later, and I had a basic Rails app up.&lt;/p&gt;&lt;h2 id=&quot;step&amp;#95;2:&amp;#95;setup&quot;&gt;Step 2: Setup&lt;/h2&gt;&lt;p&gt;First issue: The default Ruby is 1.9.1, and Rails is the older 3.2 version. I'm starting afresh, why learn old versions? Plus, it defaults to MySQL. Ugh, hose it. So, I started with a fresh Ubuntu 13.04 x64 install.&lt;/p&gt;&lt;p&gt;First, create a user for the webapp:&lt;/p&gt;&lt;pre&gt;&lt;code class=&quot;bash&quot;&gt;adduser my&amp;#95;rails&amp;#95;app
+&lt;/code&gt;&lt;/pre&gt;&lt;h3 id=&quot;ruby&quot;&gt;Ruby&lt;/h3&gt;&lt;p&gt;It appears that Ruby is out-of-date on Ubuntu 13.04, and gem is considered broken, so the community recommends rvm for installation and configuration. Thankfully, Digital Ocean has a pretty nice guide, that I was able to use with only a few alterations: &lt;a href=&quot;http://www.digitalocean.com/community/articles/how-to-install-rails-and-nginx-with-passenger-on-ubuntu&quot; target=&quot;_blank&quot;&gt;http://www.digitalocean.com/community/articles/how-to-install-rails-and-nginx-with-passenger-on-ubuntu&lt;/a&gt;.&lt;/p&gt;&lt;p&gt;First, download the latest rvm and add the root user to it:&lt;/p&gt;&lt;pre&gt;&lt;code class=&quot;bash&quot;&gt;curl -L https://get.rvm.io | bash -s stable
+adduser root rvm
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;Logout, login to pick up the group changes. Next, use rvm and gem to download the latest Ruby-related packages:&lt;/p&gt;&lt;pre&gt;&lt;code class=&quot;bash&quot;&gt;rvm get stable
+rvm requirements
+rvm install 2.0.0
+rvm use 2.0.0 --default
+rvm rubygems current
+gem install rails
+gem install passenger&amp;amp;lt;/pre&amp;amp;gt;
+aptitude install nodejs # Rails uses Javascript for asset-handling
+&lt;/code&gt;&lt;/pre&gt;&lt;h3 id=&quot;nginx&quot;&gt;Nginx&lt;/h3&gt;&lt;p&gt;Now, install a few dev packages necessary to build Nginx:&lt;/p&gt;&lt;pre&gt;&lt;code class=&quot;bash&quot;&gt;aptitude upgrade curl
+aptitude install libcurl4-openssl-dev
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;The next step would typically be &lt;code&gt;rvmsudo passenger-install-nginx-module&lt;/code&gt;, which downloads, builds, and configures Nginx, but unfortunately, on the smallest droplet instance (512 MB) it dies for lack of memory. You could temporarily resize the instance, or you can add virtual memory:&lt;/p&gt;&lt;pre&gt;&lt;code class=&quot;bash&quot;&gt;sudo dd if=/dev/zero of=/swap bs=1M count=1024
+sudo mkswap /swap
+sudo swapon /swap
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;Finally, install Nginx:&lt;/p&gt;&lt;pre&gt;&lt;code class=&quot;bash&quot;&gt;rvmsudo passenger-install-nginx-module
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;Unfortunately, this doesn't install the service scripts to start Nginx on Ubuntu 13.04, so run this:&lt;/p&gt;&lt;pre&gt;&lt;code class=&quot;bash&quot;&gt;# Download nginx startup script
+wget -O init-deb.sh http://library.linode.com/assets/660-init-deb.sh
+
+# Move the script to the init.d directory and make executable
+mv init-deb.sh /etc/init.d/nginx
+chmod +x /etc/init.d/nginx
+
+# Add nginx to the system startup
+/usr/sbin/update-rc.d -f nginx defaults
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;In /opt/nginx/conf/nginx.conf, set the user at the top to the webapp user (only appropriate for a one-app instance.)&lt;/p&gt;&lt;p&gt;Change&lt;/p&gt;&lt;pre&gt;&lt;code&gt;#user nobody;
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;to&lt;/p&gt;&lt;pre&gt;&lt;code&gt;user my&amp;#95;rails&amp;#95;app;
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;and add a server entry for the webapp:&lt;/p&gt;&lt;pre&gt;&lt;code&gt;server {
+    listen 80;
+    server&amp;#95;name www.example.com;
+    root /var/www/my&amp;#95;rails&amp;#95;app/public; # &amp;lt;--- be sure to point to 'public'!
+    passenger&amp;#95;enabled on;
+}
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;Finally, restart Nginx with the new configuration:&lt;/p&gt;&lt;pre&gt;&lt;code class=&quot;bash&quot;&gt;/etc/init.d/nginx start
+&lt;/code&gt;&lt;/pre&gt;&lt;h3 id=&quot;postgres&quot;&gt;Postgres&lt;/h3&gt;&lt;p&gt;The default Postgres for Ubuntu 13.04 is 9.1, which is current enough for my purposes, so we can rely on the lovely apt package system. We also need the pg gem to set up the Rails app with Postgres support, and to add the same user as we did at the start for access.&lt;/p&gt;&lt;pre&gt;&lt;code class=&quot;bash&quot;&gt;aptitude install postgresql libpq-dev
+gem install pg
+
+su postgres -c 'createuser my&amp;#95;rails&amp;#95;app -dSR'
+/etc/init.d/postgresql start
+&lt;/code&gt;&lt;/pre&gt;&lt;h3 id=&quot;rails&quot;&gt;Rails&lt;/h3&gt;&lt;p&gt;At last, we're ready to create the Rails app! First, we setup a new directory to store webapps, then we create the app and transfer ownership to the webapp user created at the beginning. Then, we become the user, and use rake to setup the necessary databases.&lt;/p&gt;&lt;pre&gt;&lt;code class=&quot;bash&quot;&gt;mkdir -p /var/www/
+cd /var/www/
+rails new my&amp;#95;rails&amp;#95;app -d
+chown -R my&amp;#95;rails&amp;#95;app.my&amp;#95;rails&amp;#95;app /var/www/my&amp;#95;rails&amp;#95;app
+su - my&amp;#95;rails&amp;#95;app
+cd /var/www/my&amp;#95;rails&amp;#95;app
+rake db:create:all
+rake db:migrate
+exit
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;At this point, you should be able to run:&lt;/p&gt;&lt;pre&gt;&lt;code class=&quot;bash&quot;&gt;su - my&amp;#95;rails&amp;#95;app -c 'cd /var/www/my&amp;#95;rails&amp;#95;app &amp;amp;&amp;amp; rails server'
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;and get the WEBrick server running successfully!&lt;/p&gt;
+</description>
+<pubDate>
+Sun, 08 Jun 2014 00:00:00 +0700
+</pubDate>
+</item>
+</channel>
+</rss>

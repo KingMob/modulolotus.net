@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <title>Modulo Lotus</title>
+        <meta name="description" content="">
+        <meta name="keywords" content="">
+        <meta content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" name="viewport">
+
+        <link rel="apple-touch-icon" sizes="180x180" href="img/apple-touch-icon.png">
+        <link rel="icon" type="image/png" sizes="32x32" href="img/favicon-32x32.png">
+        <link rel="icon" type="image/png" sizes="16x16" href="img/favicon-16x16.png">
+        <link rel="manifest" href="img/site.webmanifest">
+        <link rel="mask-icon" href="img/safari-pinned-tab.svg" color="#522158">
+        <meta name="msapplication-TileColor" content="#9f00a7">
+        <meta name="theme-color" content="#b942c7">
+
+        <!-- <link href="https://fonts.googleapis.com/css?family=Montserrat:400,700|Oxygen:300,400,700|Inconsolata" rel="stylesheet"> -->
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Fira+Mono:wght@400;500;700&family=Lato:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&family=Montserrat:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&display=swap" rel="stylesheet"> 
+        <link href="css/normalize.css" rel="stylesheet" type="text/css" />
+        <link href="css/blog.css" rel="stylesheet" type="text/css" />
+        <link href="css/lotus-highlightjs.min.css" rel="stylesheet" type="text/css" />
+        <script async src="https://www.googletagmanager.com/gtag/js?id=G-D5DMZFWW41"></script>
+        <script>
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+
+            gtag('config', 'G-D5DMZFWW41');
+        </script>
+    </head>
+    <body>
+        <aside id="sidebar">
+            <div id="logo">
+                <a title="Modulo Lotus" href="/">
+                    <img class="icon" src="/img/white-lotus.svg">
+                    <div class="text desktop-and-tablet-only">Modulo<br>Lotus</div>
+                    <div class="text mobile-only">Modulo Lotus</div>
+                </a>
+            </div>
+
+            <nav id="sidebar-links">
+                <nav id="menucont">
+                    <div class="menutitle">
+                        <svg class="icon icon-menu" aria-hidden="true"><use xlink:href="/img/icons.svg#icon-menu"></use></svg><span class="menu-text">Menu</span>
+                    </div>
+                    <ul class="menu">
+                        <li  class="active" ><a title="Home" href="/"><div class="menu-item-text">Home</div></a></li>
+                        <li ><a title="Archives" href="/archives/"><div class="menu-item-text">Archives</div></a></li>
+                        
+                        <li ><a title="Tags" href="/tags/"><div class="menu-item-text">Tags</div></a></li>
+                        
+                        
+                        <li >
+                            <a href="/now/"><div class="menu-item-text">Now</div></a>
+                        </li>
+                        
+                        <li >
+                            <a href="/about/"><div class="menu-item-text">About</div></a>
+                        </li>
+                        
+                        <!-- <li><a title="RSS" href="/feed.xml"><div class="menu-item-text">RSS</div></a></li> -->
+                    </ul>
+                </nav>
+
+                <nav id="socialmedia">
+                    <ul>
+                        <li><a title="LinkedIn" href="https://www.linkedin.com/in/matthewdavidson1" rel="external"><svg class="icon icon-linkedin"><use xlink:href="/img/icons.svg#icon-linkedin"></use></svg></a></li>
+                        <li><a title="GitHub" href="https://github.com/KingMob" rel="external"><svg class="icon icon-github-circled"><use xlink:href="/img/icons.svg#icon-github-circled"></use></svg></a></li>
+                        <li><a title="RSS Feed" href="/feed.xml"><svg class="icon icon-rss-squared"><use xlink:href="/img/icons.svg#icon-rss-squared"></use></svg></a></li>
+                    </ul>
+                </nav>
+            </nav>
+        </aside>
+
+        <article id="main">
+            
+<div id="post">
+    <div class="post-header">
+    <div id="post-meta">
+        <h1>Adding HTTP/2 client support to Aleph</h1>
+        <div class="byline">
+            <span class="date">June 20, 2023</span>
+            
+        </div>
+    </div>
+</div>
+<div>
+    
+    <p>Earlier this year, I received a grant from Clojurists Together to modernize Aleph and bring HTTP/2 support to it. These are some of the interesting tidbits of the journey so far.</p><h2 id="http/2:&#95;now&#95;twice&#95;as&#95;hypertextual!">HTTP/2: Now Twice as Hypertextual!</h2><p>I began with a deep dive into <a href='https://www.rfc-editor.org/rfc/rfc9113.html'>RFC 9113</a> and its predecessors, and absorbed everything I could about the new updates for <a href='https://web.dev/performance-http2/'>HTTP/2</a>: streams, frames, flow control, server push, prioritization, connection status, pseudo-headers, etc. Some of the underlying changes are handled invisibly by Netty (Aleph's underlying network lib), like the new binary frames and header compression, but the rest required serious updates to Aleph to get working.</p><h3 id="streams">Streams</h3><p>HTTP is based on the simple concept of: send a request, wait for a response, repeat. Unfortunately, having to wait for the previous response before getting to send the next request is suboptimal. In theory, <a href='https://developer.mozilla.org/en-US/docs/Web/HTTP/Connection_management_in_HTTP_1.x#http_pipelining'>HTTP/1.1 supports pipelining</a>, where you can fire off multiple requests without waiting for their responses, and eventually get the responses back in the same order. In reality, that breaks intermediate caches and proxies, so it's rarely enabled. The general solution is to just open multiple TCP connections to the server. Browsers typically limit it to a maximum of six connections per server, putting a cap on parallelism.</p><p>HTTP/2 solves this by assigning each request/response pair to a unique <em>stream</em> (not to be confused with Manifold streams), allowing you to tell which frames are related and safely interleave them. Unfortunately, this broke Aleph's deep assumptions about how things worked. </p><p>When you make a request, Aleph returns a Manifold deferred (like a <code>CompletableFuture</code>), but under the hood, it transforms the Ring request map, places it on a <code>requests</code> Manifold stream, then a Manifold consumption callback pulls requests off the stream, transforms them some more, converts for Netty, and then places them on the Netty pipeline.</p><p>Each <code>put!</code> on the <code>requests</code> stream is followed by its corresponding <code>take!</code> from the <code>responses</code> stream. This works under the assumptions of HTTP/1 order, but breaks as soon as you have multiple requests in flight with HTTP/2, since an incoming response could be for an out-of-order request.</p><p>Fixing this required removing much of the underlying Manifold stream code for HTTP/2 connections.</p><h3 id="http&#95;version&#95;negotiation">HTTP Version Negotiation</h3><p>Supporting multiple HTTP versions requires changes to how how SSL/TLS is used. With just HTTP/1, you can connect to a web server and start transmitting. But RFC 9113 requires that you use TLS's Application-Layer Protocol Negotiation (ALPN; <a href='https://datatracker.ietf.org/doc/html/rfc7301'>RFC 7301</a>) with secure HTTP/2. </p><p>In essence, the client and server agree on a protocol during the TLS handshake process. This is handy, but it broke Aleph's setup process, since you can no longer set up the Manifold code and Netty pipeline for a TCP connection in advance. </p><p>What about <em>insecure</em> HTTP/2? Aleph doesn't support it yet, but the spec allows it if you <em>know in advance</em> that the server supports it (i.e., servers you control in your own internal network).</p><h3 id="lies,&#95;damned&#95;lies,&#95;and&#95;specifications">Lies, Damned Lies, and Specifications</h3><p>I learned a ton of material from the RFCs and design documents, and then I promptly had to <em>unlearn</em> a quarter of it. With evolving specs, there's a real danger in reading outdated information. It's not as simple as ignoring old RFCs, either.</p><h5 id="server&#95;push">Server Push</h5><p>See, the RFC doesn't always reflect reality. Server push, where the server can initiate "responses" that the client hasn't requested (yet), turned out to be extremely difficult to get right. To truly do it correctly requires understanding the network timings of the connection, low-level control of the OS's TCP/IP buffers, and be able to interrogate the browser's cache. Done badly, it will actually make things <em>slower</em>. Chrome <a href='https://developer.chrome.com/blog/removing-push/'>effectively disabled it</a> last year, by turning it off for all new connections, but that's not in the specs.</p><h5 id="prioritization">Prioritization</h5><p>Likewise, prioritization <a href='https://blog.cloudflare.com/better-http-2-prioritization-for-a-faster-web/'>did not pan out as hoped</a>. In earlier versions of the HTTP/2 RFCs, they described a system relating streams to each other in a weighted DAG of dependencies. Unfortunately, each browser had different ideas of how to interpret the weights; Safari and Edge effectively ignored prioritization entirely. This led to servers being unable to use it in a general manner. On top of that, browsers already prioritized how they ordered/delayed requests to begin with. In the most recent RFC, prioritization was deprecated; for HTTP/3, they've started promoting a simpler, header-based prioritization system (<a href='https://www.rfc-editor.org/rfc/rfc9218.html'>RFC 9218</a>), which is backwards-compatible, so we hope to backport it when HTTP/3 work begins.</p><h3 id="next&#95;steps">Next Steps</h3><p>The client code is under review now, and will be available as an alpha preview soon.</p><p>Many thanks to <a href='https://www.clojuriststogether.org/'>Clojurists Together</a> for supporting this work.</p>
+</div>
+
+<div id="post-tags">
+    <br/>
+    <b>Tags: </b>
+    
+    <a href="/tags/Aleph/">Aleph</a>
+    
+    <a href="/tags/HTTP/2/">HTTP/2</a>
+    
+    <a href="/tags/Clojure/">Clojure</a>
+    
+    <a href="/tags/HTTP/">HTTP</a>
+    
+</div>
+
+<br/>
+
+    
+
+    
+    <div id="prev-next">
+    
+    <div class="prev"></div>
+    
+    
+    <a class="next" href="/posts/2023-03-17-undertale-exapunks/"><div class="nav-text"">Undertale in EXAPUNKS</div><svg class="icon icon-circle-right"><use xlink:href="/img/icons.svg#icon-circle-right"></use></svg></a>
+    
+</div>
+
+    
+
+</div>
+
+            <hr/>
+            <div id="footercont">
+                Copyright &copy; 2024 Matthew Davidson
+                <br>Powered by <a href="http://cryogenweb.org">Cryogen</a>
+                <br>Theme by <a href="http://github.com/KingMob">KingMob</a>
+            </div>
+        </article>
+
+        <script src="js/highlight.pack.js" type="text/javascript"></script>
+        <script>hljs.initHighlightingOnLoad();</script>
+
+        
+        
+    </body>
+</html>

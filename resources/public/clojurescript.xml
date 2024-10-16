@@ -1,0 +1,21 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<rss version='2.0' xmlns:atom='http://www.w3.org/2005/Atom'>
+<channel>
+<atom:link href='http://www.modulolotus.net' rel='self' type='application/rss+xml'/>
+<title>
+Modulo Lotus
+</title>
+<link>
+http://www.modulolotus.net
+</link>
+<description>
+A blog on code, data, and occasionally, meditation
+</description>
+<lastBuildDate>
+Wed, 16 Oct 2024 19:41:51 +0700
+</lastBuildDate>
+<generator>
+clj-rss
+</generator>
+</channel>
+</rss>

@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <title>Modulo Lotus: A case study in refactoring Clojure trie code for performance </title>
+        <meta name="description" content="">
+        <meta name="keywords" content="">
+        <meta content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" name="viewport">
+
+        <link rel="apple-touch-icon" sizes="180x180" href="img/apple-touch-icon.png">
+        <link rel="icon" type="image/png" sizes="32x32" href="img/favicon-32x32.png">
+        <link rel="icon" type="image/png" sizes="16x16" href="img/favicon-16x16.png">
+        <link rel="manifest" href="img/site.webmanifest">
+        <link rel="mask-icon" href="img/safari-pinned-tab.svg" color="#522158">
+        <meta name="msapplication-TileColor" content="#9f00a7">
+        <meta name="theme-color" content="#b942c7">
+
+        <!-- <link href="https://fonts.googleapis.com/css?family=Montserrat:400,700|Oxygen:300,400,700|Inconsolata" rel="stylesheet"> -->
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Fira+Mono:wght@400;500;700&family=Lato:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&family=Montserrat:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&display=swap" rel="stylesheet"> 
+        <link href="/css/normalize.css" rel="stylesheet" type="text/css" />
+        <link href="/css/blog.css" rel="stylesheet" type="text/css" />
+        <link href="/css/lotus-highlightjs.min.css" rel="stylesheet" type="text/css" />
+        <script async src="https://www.googletagmanager.com/gtag/js?id=G-D5DMZFWW41"></script>
+        <script>
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+
+            gtag('config', 'G-D5DMZFWW41');
+        </script>
+    </head>
+    <body>
+        <aside id="sidebar">
+            <div id="logo">
+                <a title="Modulo Lotus" href="/">
+                    <img class="icon" src="/img/white-lotus.svg">
+                    <div class="text desktop-and-tablet-only">Modulo<br>Lotus</div>
+                    <div class="text mobile-only">Modulo Lotus</div>
+                </a>
+            </div>
+
+            <nav id="sidebar-links">
+                <nav id="menucont">
+                    <div class="menutitle">
+                        <svg class="icon icon-menu" aria-hidden="true"><use xlink:href="/img/icons.svg#icon-menu"></use></svg><span class="menu-text">Menu</span>
+                    </div>
+                    <ul class="menu">
+                        <li ><a title="Home" href="/"><div class="menu-item-text">Home</div></a></li>
+                        <li ><a title="Archives" href="/archives/"><div class="menu-item-text">Archives</div></a></li>
+                        
+                        <li ><a title="Tags" href="/tags/"><div class="menu-item-text">Tags</div></a></li>
+                        
+                        
+                        <li >
+                            <a href="/now/"><div class="menu-item-text">Now</div></a>
+                        </li>
+                        
+                        <li >
+                            <a href="/about/"><div class="menu-item-text">About</div></a>
+                        </li>
+                        
+                        <!-- <li><a title="RSS" href="/feed.xml"><div class="menu-item-text">RSS</div></a></li> -->
+                    </ul>
+                </nav>
+
+                <nav id="socialmedia">
+                    <ul>
+                        <li><a title="LinkedIn" href="https://www.linkedin.com/in/matthewdavidson1" rel="external"><svg class="icon icon-linkedin"><use xlink:href="/img/icons.svg#icon-linkedin"></use></svg></a></li>
+                        <li><a title="GitHub" href="https://github.com/KingMob" rel="external"><svg class="icon icon-github-circled"><use xlink:href="/img/icons.svg#icon-github-circled"></use></svg></a></li>
+                        <li><a title="RSS Feed" href="/feed.xml"><svg class="icon icon-rss-squared"><use xlink:href="/img/icons.svg#icon-rss-squared"></use></svg></a></li>
+                    </ul>
+                </nav>
+            </nav>
+        </aside>
+
+        <article id="main">
+            
+<div id="post">
+    <div class="post-header">
+    <div id="post-meta">
+        <h1>A case study in refactoring Clojure trie code for performance </h1>
+        <div class="byline">
+            <span class="date">May 31, 2018</span>
+            
+        </div>
+    </div>
+</div>
+<div>
+    
+     <p><link rel="stylesheet" href="/assets/chartist.min.css" /> <link rel="stylesheet" href="/assets/chart.css" />     </p><p>Last summer, I was doing HackerRank for fun and whiteboard practice, and I came across <a href="https://www.hackerrank.com/challenges/ctci-contacts/problem">a nifty little trie exercise</a>. The challenge was to add a list of contacts to a trie, and report on the number of contacts beginning with a list of prefixes.</p><p>I used my favorite language, Clojure, and quickly arrived at the correct solution, but many of these coding exercise sites have time constraints, and the idiomatic Clojure was too slow.</p><p>What follows is how you take beautiful Clojure, and accelerate it when needed. (NB: Only do this for hot paths, this is not general Clojure style advice.) All the code is available <a href="https://github.com/KingMob/clojure-trie-performance">here</a>.</p><h2 id="a_clojure_performance_journey">A Clojure Performance Journey</h2><p>For those who don't recall, tries are specialized data structures that excel at storing data with common prefixes (e.g., words). Conceptually, it's a tree, where each node represents part of the prefix, and the complete path to a terminal node represents the data.</p><p>For a list of English words, the most straightforward implementation is a tree of nodes, where each node (other than the top) has a letter, a <code>terminal</code> flag to indicate whether the node is the last letter in a word, and an array of 26 pointers to other nodes, representing the alphabet. (Various optimizations exist to compress long chains, but we will focus on this implementation for now.)</p><p>In this diagram, you can see a representation of a trie storing the words: a, ale, all, alley, are, art, at, and ate. (Terminal nodes are tinted.)</p><p><img src="/img/Clojure-trie-example.svg" style="width: 50%; margin: 0 auto; display: block" /></p><h2 id="solutions">Solutions</h2><h4 id="standard_data_structures">Standard data structures</h4><p>Here's the basic implementation. It has functions that add new words, locate the partial subtree with a given prefix, and count the number of words beginning with a prefix. In this example, <code>db</code> is a series of nested hash-maps, and the <code>:*</code> key indicates the node is terminal.</p><pre><code class="clojure">(defn add [db name]
+  (update-in db (seq name) (fnil assoc {}) :* true))
+
+(defn count-terminations [db]
+  (let [terminations (if (:* db) 1 0)]
+    (reduce +
+            terminations
+            (map count-terminations
+                 (vals (dissoc db :*))))))
+
+(defn find-partial [db partial]
+  (println
+   (if-let [sub-db (get-in db (seq partial))]
+     (count-terminations sub-db)
+     0)))
+</code></pre><p>This works, but was way too slow.</p><h4 id="switch_to_eager_over_lazy_evaluation">Switch to eager over lazy evaluation</h4><p>Clojure defaults to lazy evaluation, which requires a certain amount of overhead. What if we force eager evaluation with <code>transduce</code> instead of <code>reduce</code>?</p><pre><code class="clojure">(defn count-terminations [db]
+  (let [terminations (if (:* db) 1 0)]
+    (transduce
+     (map count-terminations)
+     +
+     terminations
+     (vals db))))
+</code></pre><p>That shaves off a few seconds, but still not good enough.</p><h4 id="switch_to_a_record">Switch to a record</h4><p>Alright, well, what about using a record with named fields and cache the default empty node?</p><pre><code class="clojure">(declare default-alphabet-trie-node)
+
+(def empty-alphabet-vector (vec (repeat 26 nil)))
+
+(defrecord AlphabetTrieNode [val terminates? children]
+  TrieNode
+  (add-substring [n [c &amp; cs]]
+    (-&gt;AlphabetTrieNode
+     val
+     (if c terminates? true)
+     (if c
+       (update children
+               (alpha-idx c)
+               #(add-substring (if (nil? %)
+                                 (default-alphabet-trie-node c)
+                                 %)
+                               cs))
+       children)))
+
+  (prefix [n s]
+    (-&gt;&gt; s
+         (seq)
+         (map alpha-idx)
+         (interpose :children)
+         (cons :children)
+         (get-in n)))
+
+  (count-words [n]
+    (loop [word-count (if terminates? 1 0)
+           legit-children (filter some? children)]
+      (if (seq legit-children)
+        (let [[child &amp; cs] legit-children]
+          (recur (+ word-count
+                    (if (:terminates? child) 1 0))
+                 (apply conj cs
+                        (filter some? (:children child)))))
+        word-count)))
+
+  (count-w-prefix [n s]
+    (if-let [subn (prefix n s)]
+      (count-words subn)
+      0)))
+
+(def default-alphabet-trie-node
+  (memoize
+   (fn [val]
+     (-&gt;AlphabetTrieNode val false empty-alphabet-vector))))
+</code></pre><p>Oof, no, the code is both slower and way more complicated. The performance benefit of records/types is that field access is much faster, which we'll exploit later.</p><h2 id="algorithmic/data_change">Algorithmic/data change</h2><p>OK, let's re-evaluate, profile, and rethink the problem. (Tweaking rarely beats using the right data structures/algorithms.) We can trade off a bit of memory to save a ton of computation time. Instead of recomputing the subtree count afresh each time, we can keep track of the word count at each node, and increase as we go. Every time we add a word, we just increment the count of each parent node by 1. Then, the <code>count</code> operation for a prefix is just a read-out of the value at that node. </p><p>Just to check, I applied this to the original solution, and got a speed-up of 10x, but it still wasn't fast enough, and using records enables some unique JVM optimizations, so we'll continue with that. Here are the changed parts:</p><pre><code class="clojure">(defrecord AlphabetTrieNode [val terminates? word-count children]
+  TrieNode
+  (add-substring [n [c &amp; cs]]
+    (-&gt;AlphabetTrieNode
+     val
+     (if c terminates? true)
+     (inc word-count)
+     (if c
+       (update children
+               (alpha-idx c)
+               (fnil #(add-substring % cs)
+                     (default-alphabet-trie-node c)))
+       children)))
+
+  (count-words [n]
+    word-count)
+
+  (count-w-prefix [n s]
+    (if-let [subn (prefix n s)]
+      (count-words subn)
+      0)))
+</code></pre><p>Now this speeds up by a factor of 50, and is simpler to boot! We're getting closer. Takeaway: always, always use the right data structures/algorithms.</p><h2 id="jvm_optimizations">JVM optimizations</h2><p>Clojure uses immutable data by default, for simplicity, ease of reasoning, and thread safety. But immutable data structures have an inherent overhead when "mutating": copies are unavoidable. What if we ditch immutability? </p><h4 id="mutable_fields">Mutable fields</h4><p>We can do this by adding metadata to fields indicating they're <code>volatile-mutable</code>. They can then be directly mutated in code.</p><pre><code class="clojure">(deftype AlphabetTrieNode [val
+                           ^:volatile-mutable terminates?
+                           ^:volatile-mutable word-count
+                           ^:volatile-mutable children]
+  TrieNode
+  (add-substring [n [c &amp; cs]]
+    (set! word-count (inc word-count))
+    (if-not c
+      (set! terminates? true)
+      (let [i (alpha-idx c)
+            child (children i)]
+        (when-not child
+          (-&gt;&gt; c
+               (default-alphabet-trie-node)
+               (assoc children i)
+               (set! children)))
+        (add-substring (children i) cs))))
+
+  (prefix [n s]
+    (loop [curr n
+           [c &amp; cs] s]
+      (if (and c curr)
+        (recur (get (.children curr) (alpha-idx c))
+               cs)
+        curr)))
+</code></pre><p>Note the use of <code>set!</code> in the mutable code. We're finally seeing subsecond execution time for this exercise.</p><h4 id="thread-unsafe_with_type_hints">Thread-unsafe with type hints</h4><p>What else can we do? Well, if we don't care about thread safety, we can switch to <code>unsynchronized-mutable</code> fields to avoid concurrency overhead. We can also switch to Java primitives and arrays with type hints. (The <code>val</code> field was also removed, since it's redundant to the <code>children</code> index.)</p><pre><code class="clojure">(deftype AlphabetTrieNode [^:unsynchronized-mutable terminates?
+                           ^:unsynchronized-mutable ^long word-count
+                           ^:unsychronized-mutable ^objects children]
+  TrieNode
+  (add-substring [n [c &amp; cs]]
+    (set! word-count (inc word-count))
+    (if-not c
+      (set! terminates? true)
+      (let [i (int (alpha-idx c))
+            child (aget children i)]
+        (when-not child
+          (aset children i (default-alphabet-trie-node c)))
+        (add-substring (aget children i) cs))))
+</code></pre><p>Great, we're down to a half second now, and fast enough for HackerRank's picky tests. Done!</p><h2 id="alternatives">Alternatives</h2><p>There are other performance-enhancing techniques that either didn't apply here or didn't have an effect on the speed in this particular case (e.g., reflection was never an issue here), or were just paths not taken.</p><h4 id="transients">Transients</h4><p>Transients are a way to use mutable data structures with code that has the same shape as your regular immutable code. Unfortunately, they do not work with records/types. They helped a bit with the hash-maps, but only by ~20%.</p><h4 id="reflection_and_type-hints">Reflection and type-hints</h4><p>If the compiler can't figure out what a data type is when invoking a method, it will slow things down massively. Use <code>(set! *warn-on-reflection* true)</code> in a file to check. I tested this, but there was no reflection in the hot path.</p><p>Unfortunately, it's not really possible to type-hint protocol method parameters, and you can't defer to a regular helper function with mutable fields, since mutable fields are private. At that point, you may want to try another method or use <code>definterface</code>.</p><h4 id="loop/recur">Loop/recur</h4><p>If a <code>loop</code> or function returns a value in the tail position, the current stack frame can be safely overwritten with the new value. <code>recur</code> can be used to avoid blowing up a deep stack, and it probably eased memory pressure here, but I didn't analyze its performance effect separately.</p><h2 id="results">Results</h2><p>Here are the raw results. The first four are for standard hash-maps, the remainder use records/types.</p><p></p><div class="ct-chart ct-perfect-fourth"></div><p>Hope you found this useful. Thanks to David Nolen for the feedback!</p><p><script src="/assets/chartist.min.js"></script> <script src="/assets/clojure-trie-performance-chart.js"></p></script></p>
+</div>
+
+<div id="post-tags">
+    <br/>
+    <b>Tags: </b>
+    
+    <a href="/tags/clojure/">clojure</a>
+    
+    <a href="/tags/trie/">trie</a>
+    
+    <a href="/tags/performance/">performance</a>
+    
+</div>
+
+<br/>
+
+
+    
+    <div id="prev-next">
+    
+    <a class="prev" href="/posts/2019-05-03-my-fav-idm/"><svg class="icon icon-circle-left"><use xlink:href="/img/icons.svg#icon-circle-left"></use></svg><div class="nav-text">Arrhythmic Beats - IDM</div></a>
+    
+    
+    <a class="next" href="/posts/2017-05-17-thoughts-on-cryptopals-1/"><div class="nav-text"">Using Clojure for the Cryptopals cryptography challenges</div><svg class="icon icon-circle-right"><use xlink:href="/img/icons.svg#icon-circle-right"></use></svg></a>
+    
+</div>
+
+    
+
+    
+
+
+</div>
+
+            <hr/>
+            <div id="footercont">
+                Copyright &copy; 2024 Matthew Davidson
+                <br>Powered by <a href="http://cryogenweb.org">Cryogen</a>
+                <br>Theme by <a href="http://github.com/KingMob">KingMob</a>
+            </div>
+        </article>
+
+        <script src="/js/highlight.pack.js" type="text/javascript"></script>
+        <script>hljs.initHighlightingOnLoad();</script>
+
+         <link rel="stylesheet" type="text/css" href="https://storage.googleapis.com/app.klipse.tech/css/codemirror.css">
+<script>
+window.klipse_settings = {
+  "selector" : ".klipse-cljs",
+  "selector_reagent" : ".klipse-reagent",
+  "selector_eval_ruby" : ".klipse-ruby",
+  "codemirror_options_in" : {
+    "lineNumbers" : true
+  },
+  "codemirror_options_out" : {
+    "lineNumbers" : true
+  }
+};
+</script>
+<script src="https://storage.googleapis.com/app.klipse.tech/plugin_prod/js/klipse_plugin.min.js"></script> 
+        
+    </body>
+</html>

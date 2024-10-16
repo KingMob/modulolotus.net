@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <title>Modulo Lotus: Using Algo to setup the strongSwan VPN</title>
+        <meta name="description" content="">
+        <meta name="keywords" content="">
+        <meta content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" name="viewport">
+
+        <link rel="apple-touch-icon" sizes="180x180" href="img/apple-touch-icon.png">
+        <link rel="icon" type="image/png" sizes="32x32" href="img/favicon-32x32.png">
+        <link rel="icon" type="image/png" sizes="16x16" href="img/favicon-16x16.png">
+        <link rel="manifest" href="img/site.webmanifest">
+        <link rel="mask-icon" href="img/safari-pinned-tab.svg" color="#522158">
+        <meta name="msapplication-TileColor" content="#9f00a7">
+        <meta name="theme-color" content="#b942c7">
+
+        <!-- <link href="https://fonts.googleapis.com/css?family=Montserrat:400,700|Oxygen:300,400,700|Inconsolata" rel="stylesheet"> -->
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Fira+Mono:wght@400;500;700&family=Lato:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&family=Montserrat:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&display=swap" rel="stylesheet"> 
+        <link href="/css/normalize.css" rel="stylesheet" type="text/css" />
+        <link href="/css/blog.css" rel="stylesheet" type="text/css" />
+        <link href="/css/lotus-highlightjs.min.css" rel="stylesheet" type="text/css" />
+        <script async src="https://www.googletagmanager.com/gtag/js?id=G-D5DMZFWW41"></script>
+        <script>
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+
+            gtag('config', 'G-D5DMZFWW41');
+        </script>
+    </head>
+    <body>
+        <aside id="sidebar">
+            <div id="logo">
+                <a title="Modulo Lotus" href="/">
+                    <img class="icon" src="/img/white-lotus.svg">
+                    <div class="text desktop-and-tablet-only">Modulo<br>Lotus</div>
+                    <div class="text mobile-only">Modulo Lotus</div>
+                </a>
+            </div>
+
+            <nav id="sidebar-links">
+                <nav id="menucont">
+                    <div class="menutitle">
+                        <svg class="icon icon-menu" aria-hidden="true"><use xlink:href="/img/icons.svg#icon-menu"></use></svg><span class="menu-text">Menu</span>
+                    </div>
+                    <ul class="menu">
+                        <li ><a title="Home" href="/"><div class="menu-item-text">Home</div></a></li>
+                        <li ><a title="Archives" href="/archives/"><div class="menu-item-text">Archives</div></a></li>
+                        
+                        <li ><a title="Tags" href="/tags/"><div class="menu-item-text">Tags</div></a></li>
+                        
+                        
+                        <li >
+                            <a href="/now/"><div class="menu-item-text">Now</div></a>
+                        </li>
+                        
+                        <li >
+                            <a href="/about/"><div class="menu-item-text">About</div></a>
+                        </li>
+                        
+                        <!-- <li><a title="RSS" href="/feed.xml"><div class="menu-item-text">RSS</div></a></li> -->
+                    </ul>
+                </nav>
+
+                <nav id="socialmedia">
+                    <ul>
+                        <li><a title="LinkedIn" href="https://www.linkedin.com/in/matthewdavidson1" rel="external"><svg class="icon icon-linkedin"><use xlink:href="/img/icons.svg#icon-linkedin"></use></svg></a></li>
+                        <li><a title="GitHub" href="https://github.com/KingMob" rel="external"><svg class="icon icon-github-circled"><use xlink:href="/img/icons.svg#icon-github-circled"></use></svg></a></li>
+                        <li><a title="RSS Feed" href="/feed.xml"><svg class="icon icon-rss-squared"><use xlink:href="/img/icons.svg#icon-rss-squared"></use></svg></a></li>
+                    </ul>
+                </nav>
+            </nav>
+        </aside>
+
+        <article id="main">
+            
+<div id="post">
+    <div class="post-header">
+    <div id="post-meta">
+        <h1>Using Algo to setup the strongSwan VPN</h1>
+        <div class="byline">
+            <span class="date">March 28, 2017</span>
+            
+        </div>
+    </div>
+</div>
+<div>
+    
+    <p>Recently, it was in the news that <a href='https://www.washingtonpost.com/news/the-switch/wp/2017/03/28/the-house-just-voted-to-wipe-out-the-fccs-landmark-internet-privacy-protections/'>Congress declined to prevent ISPs from requiring consumer opt-in before <del>spying on you</del> selling your browsing history to advertisers</a>. Of course, the rule they're trying to kill hasn't even been applied yet, so ISPs do this currently <em>anyway</em>. Browser extensions like <a href='https://www.eff.org/https-everywhere'>HTTPS Everywhere</a> help, since with HTTPS, ISPs can only see what domains you connect to, but even that's a bit much.</p><p>The natural solution is a VPN. Tunnel all your traffic through another server, and there's nothing for an ISP or malicious coffee shop to spy on. There's no shortage of commercial VPNs offering their services, but all of them require that you trust them over your ISP. This might be reasonable, or it might not be. Personally, I already <em>had</em> a server set up for this website, so I decided to add a VPN to it.</p><p>I used <a href='https://blog.trailofbits.com/2016/12/12/meet-algo-the-vpn-that-works/'>Algo</a>, since I'm not a strongSwan configuration expert, and it promised to get me up and running quickly. By default, it creates a brand-new server, which is simpler, but it supports existing servers, too, albeit with less support. What follows are the steps I took to make it work on an existing Ubuntu 16.10 server on Vultr. Hopefully this helps.</p><h2 id="algo">Algo</h2><p>Algo runs as a shell script which collects some info and then runs a series of Ansible playbooks. To get started, just run:</p><pre><code class="shell">$ ./algo
+
+  What provider would you like to use?
+    1. DigitalOcean
+    2. Amazon EC2
+    3. Google Compute Engine
+    4. Microsoft Azure
+    5. Install to existing Ubuntu server
+
+Enter the number of your desired provider
+: 5
+
+...
+</code></pre><p>Select your options, and if all goes well, great! You can stop reading this post. (See <a href='https://github.com/trailofbits/algo'>Algo's docs</a> for more.)</p><h2 id="problems&#95;i&#95;encountered">Problems I Encountered</h2><h3 id="root&#95;login&#95;is&#95;disabled">Root login is disabled</h3><p>I disabled root login, and do everything through my personal user with <code>sudo</code>. However, Algo really expects to run as root. To fix this, open up the <code>ansible.cfg</code> file, and add the privilege escalation section:</p><pre><code class="ini">&#91;privilege&#95;escalation&#93;
+become = True
+become&#95;user = root
+become&#95;ask&#95;pass = True
+</code></pre><p>If you allow root login, there should be no need for the above step.</p><h3 id="ssh&#95;connection&#95;errors">SSH connection errors</h3><p>I added the server's SSH key to ssh-agent, but for some inexplicable reason, Algo couldn't connect. After trying half a dozen possibilities, the culprit turned out to be the SSH option, <code>-o IdentitiesOnly=yes</code>. This forces SSH to use only identities in the main <code>&#126;/.ssh/config</code> file or passed-in on the command-line. But since I created a special keypair just for Vultr, it can't use it. The solution is to remove <code>-o IdentitiesOnly=yes</code> from <code>ssh&#95;args</code> in <code>ansible.cfg</code>.</p><h3 id="firewall&#95;issues">Firewall issues</h3><p>After Algo completed, my monitoring service immediately blew up my phone to tell me the website was down. Turns out, it disabled UFW, and with it, my web server firewall ports. Luckily the fix for that was just a simple re-enable on the server:</p><pre><code class="shell">sudo ufw enable
+</code></pre><p>(Note: UFW won't show the VPN's firewall rules, but iptables will.)</p><p>Finally, for Vultr, they (wisely) set up an external firewall available for instances. This is generally a good idea, but trying to match it to the rules necessary for the VPN is a lot of work, so the final thing to do is to disable the firewall from the Vultr control panel. <strong>Be sure your firewall is set up correctly on the server first.</strong></p>
+</div>
+
+<div id="post-tags">
+    <br/>
+    <b>Tags: </b>
+    
+    <a href="/tags/vpn/">vpn</a>
+    
+    <a href="/tags/strongswan/">strongswan</a>
+    
+    <a href="/tags/algo/">algo</a>
+    
+</div>
+
+<br/>
+
+
+    
+    <div id="prev-next">
+    
+    <a class="prev" href="/posts/2017-05-17-thoughts-on-cryptopals-1/"><svg class="icon icon-circle-left"><use xlink:href="/img/icons.svg#icon-circle-left"></use></svg><div class="nav-text">Using Clojure for the Cryptopals cryptography challenges</div></a>
+    
+    
+    <a class="next" href="/posts/2014-07-11-premature-optimization/"><div class="nav-text"">Premature optimization is the root of all hair loss</div><svg class="icon icon-circle-right"><use xlink:href="/img/icons.svg#icon-circle-right"></use></svg></a>
+    
+</div>
+
+    
+
+    
+
+
+</div>
+
+            <hr/>
+            <div id="footercont">
+                Copyright &copy; 2024 Matthew Davidson
+                <br>Powered by <a href="http://cryogenweb.org">Cryogen</a>
+                <br>Theme by <a href="http://github.com/KingMob">KingMob</a>
+            </div>
+        </article>
+
+        <script src="/js/highlight.pack.js" type="text/javascript"></script>
+        <script>hljs.initHighlightingOnLoad();</script>
+
+        
+        
+    </body>
+</html>

@@ -1,0 +1,276 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<rss version='2.0' xmlns:atom='http://www.w3.org/2005/Atom'>
+<channel>
+<atom:link href='http://www.modulolotus.net' rel='self' type='application/rss+xml'/>
+<title>
+Modulo Lotus
+</title>
+<link>
+http://www.modulolotus.net
+</link>
+<description>
+A blog on code, data, and occasionally, meditation
+</description>
+<lastBuildDate>
+Wed, 16 Oct 2024 19:41:51 +0700
+</lastBuildDate>
+<generator>
+clj-rss
+</generator>
+<item>
+<guid>
+http://www.modulolotus.net/posts/2022-06-22-tidd/
+</guid>
+<link>
+http://www.modulolotus.net/posts/2022-06-22-tidd/
+</link>
+<title>
+Test-induced design damage in Clojure
+</title>
+<description>
+ &lt;p&gt;Writing tests is the software equivalent of doing the dishes: unloved, but necessary. Unfortunately, because language designers are almost never interested in testing, it's usually a second-class concept, assuming the language even bothers to treat it as anything different from the rest of code in the first place. This is unfortunate, because it can have detrimental consequences to your code design.&lt;/p&gt;&lt;p&gt;Test-Induced Design Damage (TIDD) is not a new concept. DHH of Rails &lt;a href='https://dhh.dk/2014/test-induced-design-damage.html'&gt;wrote about TIDD&lt;/a&gt; back in 2014. This is not even a new concept for Clojure, as Eric Normand &lt;a href='https://ericnormand.me/issues/purelyfunctional-tv-newsletter-325-tip-don-t-use-a-protocol-to-make-testing-easier'&gt;wrote a newsletter about it&lt;/a&gt; in the past. Unfortunately, Normand's post didn't have the impact I'd hoped for, nor did it go into enough detail for me, so I'm going to try and give examples that will help people understand the issue and the trade-offs a bit better.&lt;/p&gt;&lt;h2 id=&quot;what&amp;#95;is&amp;#95;test-induced&amp;#95;design&amp;#95;damage?&quot;&gt;What is test-induced design damage?&lt;/h2&gt;&lt;p&gt;I suggest you read DHH's post above, but in short, it's altering code to better support tests at the expense of other aspects of the system. Communities like Test-Driven Development (TDD) have taken it as &lt;i&gt;a priori&lt;/i&gt; gospel that better testing is a primary goal, while downplaying the consequences. As they say, software developers know the value of everything and the cost of nothing.&lt;/p&gt;&lt;p&gt;For example, extracting hidden/private/closed-over code so it can be mocked for testing also carries detriments like requiring names (it usually can't be anonymous any more), cluttering docs, expanding argument lists (since support objects must be passed-in or injected), potential misuse (if users can now directly access/create/use an object when they shouldn't), and indirection overhead (both mental and code-based).&lt;/p&gt;&lt;p&gt;&lt;strong&gt;To be clear: alterations that support testing may have other benefits that justify their use, but this needs to be evaluated on a case-by-case basis, rather than assuming improved testing is a sufficient justification &lt;i&gt;itself&lt;/i&gt;.&lt;/strong&gt; &lt;/p&gt;&lt;p&gt;It's even possible that complicating your code to support testing actually &lt;strong&gt;increases the number of bugs&lt;/strong&gt;, despite more testing. This is because, all other things being equal, larger codebases have more bugs&lt;a href='#fn-1' id='fnref1'&gt;&lt;sup&gt;1&lt;/sup&gt;&lt;/a&gt;.&lt;/p&gt;&lt;p&gt;The rest of this post will look at changes made &lt;em&gt;solely&lt;/em&gt; for testing. I'll show you some examples of TIDD, in order of increasing complexity. &lt;/p&gt;&lt;h2 id=&quot;examples&quot;&gt;Examples&lt;/h2&gt;&lt;p&gt;Imagine you have some function that takes too long to use in local tests. Maybe it makes a network call that takes a while.&lt;/p&gt;&lt;p&gt;Let's say you made a plain function:&lt;/p&gt;&lt;pre&gt;&lt;code class=&quot;clojure&quot;&gt;&amp;#40;defn my-fn 
+  &amp;#91;&amp;#93;
+  &amp;#40;call-prod-endpoint&amp;#41;&amp;#41;
+
+;; usage
+&amp;#40;my-fn&amp;#41;
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;You decide you need to mock it for testing, so what are your options?&lt;/p&gt;&lt;h3 id=&quot;redefining&amp;#95;via&amp;#95;&lt;code&gt;with-redefs&lt;/code&gt;&amp;#95;or&amp;#95;&lt;code&gt;with-redefs-fn&lt;/code&gt;&quot;&gt;Redefining via &lt;code&gt;with-redefs&lt;/code&gt; or &lt;code&gt;with-redefs-fn&lt;/code&gt;&lt;/h3&gt;&lt;p&gt;Using &lt;code&gt;with-redefs&lt;/code&gt;, you can temporarily replace the root definition for testing without touching the original code at all (&lt;code&gt;alter-var-root&lt;/code&gt; can work, too, though it's more cumbersome to use). This sounds like the perfect way to leave non-testing code clean, right? Eric Normand suggested this in &lt;a href='https://ericnormand.me/issues/purelyfunctional-tv-newsletter-325-tip-don-t-use-a-protocol-to-make-testing-easier'&gt;his original newsletter.&lt;/a&gt;&lt;/p&gt;&lt;pre&gt;&lt;code class=&quot;clojure&quot;&gt;&amp;#40;defn my-fn 
+  &amp;#91;&amp;#93;
+  &amp;#40;call-prod-endpoint&amp;#41;&amp;#41;
+
+;; test
+&amp;#40;deftest redef-ing-my-fn
+  &amp;#40;with-redefs &amp;#91;my-fn #&amp;#40;call-mock-endpoint&amp;#41;&amp;#93;
+    &amp;#40;is &amp;#40;= &amp;#40;my-fn&amp;#41; some-expected-result&amp;#41;&amp;#41;&amp;#41;&amp;#41;
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;Unfortunately, &lt;code&gt;with-redefs&lt;/code&gt; requires a lot of care with multi-threaded / lazy code, since the var root definition is changed for &lt;i&gt;all&lt;/i&gt; threads for a limited time. Code in other threads that run after the &lt;code&gt;with-redefs&lt;/code&gt; ends can easily use an unintended value. Tim Baldridge wrote a long post on &lt;a href='https://cognitect.com/blog/2016/9/15/works-on-my-machine-understanding-var-bindings-and-roots'&gt;how vars work under the hood and why redefs can be tricky&lt;/a&gt;, and it's worth reading before using functions like &lt;code&gt;binding/with-redefs&lt;/code&gt; in any context.&lt;/p&gt;&lt;p&gt;You &lt;i&gt;could&lt;/i&gt; safely use &lt;code&gt;with-redefs&lt;/code&gt; if you can guarantee all of the following:&lt;/p&gt;&lt;ol&gt;&lt;li&gt;Don't run multiple tests simultaneously - slower unit testing is the price&lt;/li&gt;&lt;li&gt;Don't rely on background threads - these are fragile anyway, and create timing concerns even if you don't redef anything&lt;/li&gt;&lt;li&gt;Wrap the entire body of the test in &lt;code&gt;with-redefs&lt;/code&gt; - you don't need to worry about lazy evaluation happening after &lt;code&gt;with-redefs&lt;/code&gt; ends if you've already forced the values you need&lt;/li&gt;&lt;li&gt;Ensure you always join with other threads before exiting the &lt;code&gt;with-redefs&lt;/code&gt; if those threads do anything an assertion relies on - this may require code distortion itself&lt;/li&gt;&lt;/ol&gt;&lt;p&gt;These are a lot of constraints. #1 is undesirable if easy, but ensuring #2 and #4 may range from annoying to infeasible without altering our main code, which violates the goal of avoiding TIDD.&lt;/p&gt;&lt;p&gt;(There's also a long discussion about &lt;code&gt;with-redefs&lt;/code&gt; in the &lt;a href='https://www.reddit.com/r/Clojure/comments/ble9k4/dont_use_a_protocol_to_make_testing_easier/'&gt;Reddit comments on Eric Normand's original newsletter&lt;/a&gt;. Unfortunately, Eric's example involved a database connection, which inherently has state and was thus a stronger candidate for protocols/components, and many people latched onto that aspect instead of considering the bigger picture.)&lt;/p&gt;&lt;h3 id=&quot;rebinding&amp;#95;via&amp;#95;&lt;code&gt;binding&lt;/code&gt;&amp;#95;or&amp;#95;&lt;code&gt;with-bindings&lt;/code&gt;&quot;&gt;Rebinding via &lt;code&gt;binding&lt;/code&gt; or &lt;code&gt;with-bindings&lt;/code&gt;&lt;/h3&gt;&lt;p&gt;This is similar to the above, and works, but it requires you declare &lt;code&gt;my-fn&lt;/code&gt; as &lt;code&gt;&amp;#94;:dynamic&lt;/code&gt;. &lt;/p&gt;&lt;pre&gt;&lt;code class=&quot;clojure&quot;&gt;&amp;#40;defn &amp;#94;:dynamic my-fn 
+  &amp;#91;&amp;#93;
+  &amp;#40;call-prod-endpoint&amp;#41;&amp;#41;
+
+;; test usage
+&amp;#40;deftest rebinding-my-fn
+  &amp;#40;binding &amp;#91;my-fn #&amp;#40;call-mock-endpoint&amp;#41;&amp;#93;
+    &amp;#40;is &amp;#40;= &amp;#40;my-fn&amp;#41; some-expected-result&amp;#41;&amp;#41;&amp;#41;&amp;#41;  
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;On the upside, it only changes the local thread and its children's definition, so tests can run in parallel. Care must still be taken with background threads, but you should avoid those in tests anyway. For all other started threads, they'll carry the binding frame with them, even if the top thread ended, so it's much safer for multi-threaded code.&lt;/p&gt;&lt;p&gt;However, this is still a slight alteration of the code. Declaring it as &lt;code&gt;&amp;#94;:dynamic&lt;/code&gt; means it's slightly slower to execute in production code. Worse, it sends a false signal to users that they may need/want to rebind it. Plus, it suffers a variant of the expression problem, since you cannot mark outside vars as &lt;code&gt;&amp;#94;:dynamic&lt;/code&gt; without forking the code. (One can argue you shouldn't test outside code, but creating wrapper fns just to mock is TIDD again.) Still, this is almost the ideal solution, if not for &lt;code&gt;&amp;#94;:dynamic&lt;/code&gt;.&lt;a href='#fn-2' id='fnref2'&gt;&lt;sup&gt;2&lt;/sup&gt;&lt;/a&gt;&lt;/p&gt;&lt;h3 id=&quot;branch&amp;#95;inside&amp;#95;the&amp;#95;function&amp;#95;on&amp;#95;a&amp;#95;testing&amp;#95;flag&quot;&gt;Branch inside the function on a testing flag&lt;/h3&gt;&lt;p&gt;This might be an option if you already use feature flags heavily. For testing, it would look something like: &lt;/p&gt;&lt;pre&gt;&lt;code class=&quot;clojure&quot;&gt;&amp;#40;defn my-fn 
+  &amp;#91;&amp;#93;
+  &amp;#40;if-not global.flags/is-testing?
+    &amp;#40;call-prod-endpoint&amp;#41;&amp;#41;
+    &amp;#40;call-mock-endpoint&amp;#41;&amp;#41;
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;Then you need to set &lt;code&gt;global.flags/is-testing?&lt;/code&gt; only when testing. This keeps the function signature clean, but clutters the global namespace, complicates the function body, makes multiple mock behaviors difficult, and adds branching overhead. &lt;/p&gt;&lt;p&gt;You could also use compile-time constants or macros to make this pattern more efficient, but it would still be less flexible and cluttered.&lt;/p&gt;&lt;h3 id=&quot;multimethods&quot;&gt;Multimethods&lt;/h3&gt;&lt;p&gt;What about polymorphism? You could make &lt;code&gt;my-fn&lt;/code&gt; polymorphic with multimethods by dispatching based on whether you're running normally or for testing:&lt;/p&gt;&lt;pre&gt;&lt;code class=&quot;clojure&quot;&gt;
+&amp;#40;defmulti my-fn &amp;#40;fn &amp;#91;type&amp;#93; type&amp;#41;&amp;#41;
+
+&amp;#40;defmethod my-fn :normal &amp;#91;&amp;#95;&amp;#93;
+  &amp;#40;call-prod-endpoint&amp;#41;&amp;#41;
+
+&amp;#40;defmethod my-fn :test &amp;#91;&amp;#95;&amp;#93;
+  &amp;#40;call-mock-endpoint&amp;#41;&amp;#41;
+
+;; usage
+&amp;#40;my-fn :normal&amp;#41;
+
+;; test usage
+&amp;#40;deftest polymorphic-multimethod-test
+  &amp;#40;is &amp;#40;= &amp;#40;my-fn :test&amp;#41; some-expected-result&amp;#41;&amp;#41;&amp;#41;
+
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;The problem is you now have more code, and you have to weave the right dispatch value into &lt;strong&gt;all&lt;/strong&gt; calls to &lt;code&gt;my-fn&lt;/code&gt; (and possibly their parents), which alters the param signatures. You could set the dispatch value as a global var, but that has many of the same problems as internal branching does.&lt;/p&gt;&lt;p&gt;Which leaves protocols...&lt;/p&gt;&lt;h2 id=&quot;protocols&quot;&gt;Protocols&lt;/h2&gt;&lt;p&gt;The pattern I've seen the most in real Clojure code, and unfortunately, the &lt;strong&gt;most complicated&lt;/strong&gt; option, is to replace plain functions with protocols and records.&lt;/p&gt;&lt;pre&gt;&lt;code class=&quot;clojure&quot;&gt;&amp;#40;defprotocol MyProtocol
+  &amp;#40;my-fn &amp;#91;&amp;#95;&amp;#93;&amp;#41;&amp;#41;
+
+&amp;#40;defrecord MyFunctionner &amp;#91;&amp;#93;
+  MyProtocol
+  &amp;#40;my-fn &amp;#91;&amp;#95;&amp;#93;
+    &amp;#40;call-prod-endpoint&amp;#41;&amp;#41;&amp;#41;
+
+&amp;#40;defrecord MyTestFunctionner &amp;#91;&amp;#93;
+  MyProtocol
+  &amp;#40;my-fn &amp;#91;&amp;#95;&amp;#93;
+    &amp;#40;call-mock-endpoint&amp;#41;&amp;#41;&amp;#41;
+
+;; non-default constructors are commonly added
+&amp;#40;defn my-functionner &amp;#91;&amp;#93;
+  &amp;#40;-&amp;gt;MyFunctionner&amp;#41;&amp;#41;
+
+&amp;#40;defn my-test-functionner &amp;#91;&amp;#93;
+  &amp;#40;-&amp;gt;MyTestFunctionner&amp;#41;&amp;#41;
+
+;; usage 
+
+&amp;#40;let &amp;#91;my-fn-er &amp;#40;my-functionner&amp;#41;&amp;#93;
+  &amp;#40;my-fn my-fn-er&amp;#41;&amp;#41;
+
+
+;; add component deps for bonus points
+&amp;#40;def system
+ ...
+ :my-functioner &amp;#40;my-functionner&amp;#41;
+ :something-else &amp;#40;component/using
+                   &amp;#40;something-else&amp;#41;
+                   &amp;#91;:my-functionner ...&amp;#93;&amp;#41;&amp;#41;
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;Protocols have the inherent problem of requiring state, since they can only be used with an object. Even if the type/record defines no state internally, &lt;i&gt;lifecycle state itself must be taken into consideration&lt;/i&gt;. Unlike a function or multimethod, which is effectively available once its namespace is required, protocol functions cannot be used before an object is created or after it's destroyed. Plus, the object must be passed around everywhere it's used, cluttering up argument lists and adding to naming overhead everywhere.&lt;/p&gt;&lt;p&gt;For bonus complexity, non-default constructors are extremely common additions, and once people have a type/record with a lifecycle, they add it to their initialization system, so they end up writing a bunch of extra Component/Integrant/etc code to support it, too.&lt;/p&gt;&lt;p&gt;&lt;strong&gt;Is all this worth it?&lt;/strong&gt; How many protocols have you seen that exist &lt;i&gt;just&lt;/i&gt; to support testing and nothing else?&lt;/p&gt;&lt;h2 id=&quot;solution:&amp;#95;dynamic&amp;#95;redef&quot;&gt;Solution: dynamic redef&lt;/h2&gt;&lt;p&gt;The solution I've settled on is &lt;a href='https://medium.com/helpshift-engineering/a-study-in-parallelising-tests-b5253817beae'&gt;one created by Mourjo Sen&lt;/a&gt; and I think it deserves to be more widely known. It's encapsulated in a mini-library called &lt;a href='https://clojars.org/me.mourjo/dynamic-redef'&gt;dynamic-redef&lt;/a&gt;.&lt;/p&gt;&lt;p&gt;The basic idea is to mimic the propagated thread-local behavior of &lt;code&gt;binding&lt;/code&gt; without having to declare anything &lt;code&gt;&amp;#94;:dynamic&lt;/code&gt; or mess with our main code. It uses &lt;code&gt;alter-var-root&lt;/code&gt; to permanently replace the root definition of a function with one that looks up its current definition in a &lt;code&gt;&amp;#94;:dynamic&lt;/code&gt; map but falls back to the original definition if no overrides are found. Then &quot;dynamically redefining&quot; a function involves adding a new binding frame under the hood with updated fn definitions for the dynamic function lookup map.&lt;/p&gt;&lt;p&gt;Here's his original gist of the technique: &lt;script src=&quot;https://gist.github.com/mourjo/387e78fcb62ab67392115c2ed616c9ab.js&quot;&gt;&lt;/script&gt;&lt;/p&gt;&lt;p&gt;Advantages:&lt;/p&gt;&lt;ol&gt;&lt;li&gt;Allows you to leave your main code &lt;i&gt;completely&lt;/i&gt; unaltered&lt;/li&gt;&lt;li&gt;Incurs no performance penalty in production code&lt;/li&gt;&lt;li&gt;Replaces definitions in a more thread-safe manner than raw &lt;code&gt;with-redefs&lt;/code&gt;&lt;/li&gt;&lt;/ol&gt;&lt;p&gt;Disadvantages:&lt;/p&gt;&lt;ol&gt;&lt;li&gt;Does not play well with background threads (though you should avoid those in tests when possible)&lt;/li&gt;&lt;li&gt;Like &lt;code&gt;binding&lt;/code&gt;, does not work with plain Java threading, which doesn't use Clojure thread frames&lt;/li&gt;&lt;/ol&gt;&lt;h3 id=&quot;summary&quot;&gt;Summary&lt;/h3&gt;&lt;p&gt;This is not meant to eliminate testing-specific protocols/records, but to offer an option that's more suitable in some use cases. My personal &quot;middle way&quot; of testing is, examine the thing to be mocked and determine if it has inherent state. If so, it's probably a better fit for protocols. But if not, don't complicate your code just to test it. Give dynamic redef a try. It may be unfamiliar, but it's simpler than the alternatives when it fits.&lt;/p&gt;&lt;h6 id=&quot;footnotes&quot;&gt;Footnotes&lt;/h6&gt;&lt;ol class='footnotes'&gt;&lt;li id='fn-1'&gt;Code Complete has &lt;a href='https://amartester.blogspot.com/2007/04/bugs-per-lines-of-code.html'&gt;some industry-generated estimates on bugs/LOC&lt;/a&gt;, but the much-discussed study, &lt;a href='https://cacm.acm.org/magazines/2017/10/221326-a-large-scale-study-of-programming-languages-and-code-quality-in-github/fulltext'&gt;A Large-Scale Study of Programming Languages and Code Quality in Github&lt;/a&gt;, actually computed the overall effect of code size (independent of language) as a control variable. If you look at the discussion of the control variables in Table 6, &quot;...they are all positive and significant&quot;. All else being equal, less code means fewer bugs.&lt;a href='#fnref1'&gt;&amp;#8617;&lt;/a&gt;&lt;/li&gt;&lt;li id='fn-2'&gt;Technically, you don't have to declare a var &lt;code&gt;&amp;#94;:dynamic&lt;/code&gt; to use &lt;code&gt;binding&lt;/code&gt; on it. There's an undocumented &lt;code&gt;.setDynamic&lt;/code&gt; method on vars, but to use this dark art successfully, you'd have to invoke it before the compiler gets to any call sites with the var. Otherwise, it'll compile a call to the root definition, and never check for binding frames. I've seen some code that claims to do this reliably via macros, but it doesn't seem to work for me.&lt;a href='#fnref2'&gt;&amp;#8617;&lt;/a&gt;&lt;/li&gt;&lt;/ol&gt;
+</description>
+<pubDate>
+Wed, 22 Jun 2022 00:00:00 +0700
+</pubDate>
+</item>
+<item>
+<guid>
+http://www.modulolotus.net/posts/2018-05-31-clojure-trie-performance/
+</guid>
+<link>
+http://www.modulolotus.net/posts/2018-05-31-clojure-trie-performance/
+</link>
+<title>
+A case study in refactoring Clojure trie code for performance 
+</title>
+<description>
+ &lt;p&gt;&lt;link rel=&quot;stylesheet&quot; href=&quot;/assets/chartist.min.css&quot; /&gt; &lt;link rel=&quot;stylesheet&quot; href=&quot;/assets/chart.css&quot; /&gt;     &lt;/p&gt;&lt;p&gt;Last summer, I was doing HackerRank for fun and whiteboard practice, and I came across &lt;a href=&quot;https://www.hackerrank.com/challenges/ctci-contacts/problem&quot;&gt;a nifty little trie exercise&lt;/a&gt;. The challenge was to add a list of contacts to a trie, and report on the number of contacts beginning with a list of prefixes.&lt;/p&gt;&lt;p&gt;I used my favorite language, Clojure, and quickly arrived at the correct solution, but many of these coding exercise sites have time constraints, and the idiomatic Clojure was too slow.&lt;/p&gt;&lt;p&gt;What follows is how you take beautiful Clojure, and accelerate it when needed. (NB: Only do this for hot paths, this is not general Clojure style advice.) All the code is available &lt;a href=&quot;https://github.com/KingMob/clojure-trie-performance&quot;&gt;here&lt;/a&gt;.&lt;/p&gt;&lt;h2 id=&quot;a_clojure_performance_journey&quot;&gt;A Clojure Performance Journey&lt;/h2&gt;&lt;p&gt;For those who don't recall, tries are specialized data structures that excel at storing data with common prefixes (e.g., words). Conceptually, it's a tree, where each node represents part of the prefix, and the complete path to a terminal node represents the data.&lt;/p&gt;&lt;p&gt;For a list of English words, the most straightforward implementation is a tree of nodes, where each node (other than the top) has a letter, a &lt;code&gt;terminal&lt;/code&gt; flag to indicate whether the node is the last letter in a word, and an array of 26 pointers to other nodes, representing the alphabet. (Various optimizations exist to compress long chains, but we will focus on this implementation for now.)&lt;/p&gt;&lt;p&gt;In this diagram, you can see a representation of a trie storing the words: a, ale, all, alley, are, art, at, and ate. (Terminal nodes are tinted.)&lt;/p&gt;&lt;p&gt;&lt;img src=&quot;/img/Clojure-trie-example.svg&quot; style=&quot;width: 50%; margin: 0 auto; display: block&quot; /&gt;&lt;/p&gt;&lt;h2 id=&quot;solutions&quot;&gt;Solutions&lt;/h2&gt;&lt;h4 id=&quot;standard_data_structures&quot;&gt;Standard data structures&lt;/h4&gt;&lt;p&gt;Here's the basic implementation. It has functions that add new words, locate the partial subtree with a given prefix, and count the number of words beginning with a prefix. In this example, &lt;code&gt;db&lt;/code&gt; is a series of nested hash-maps, and the &lt;code&gt;:*&lt;/code&gt; key indicates the node is terminal.&lt;/p&gt;&lt;pre&gt;&lt;code class=&quot;clojure&quot;&gt;(defn add [db name]
+  (update-in db (seq name) (fnil assoc {}) :* true))
+
+(defn count-terminations [db]
+  (let [terminations (if (:* db) 1 0)]
+    (reduce +
+            terminations
+            (map count-terminations
+                 (vals (dissoc db :*))))))
+
+(defn find-partial [db partial]
+  (println
+   (if-let [sub-db (get-in db (seq partial))]
+     (count-terminations sub-db)
+     0)))
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;This works, but was way too slow.&lt;/p&gt;&lt;h4 id=&quot;switch_to_eager_over_lazy_evaluation&quot;&gt;Switch to eager over lazy evaluation&lt;/h4&gt;&lt;p&gt;Clojure defaults to lazy evaluation, which requires a certain amount of overhead. What if we force eager evaluation with &lt;code&gt;transduce&lt;/code&gt; instead of &lt;code&gt;reduce&lt;/code&gt;?&lt;/p&gt;&lt;pre&gt;&lt;code class=&quot;clojure&quot;&gt;(defn count-terminations [db]
+  (let [terminations (if (:* db) 1 0)]
+    (transduce
+     (map count-terminations)
+     +
+     terminations
+     (vals db))))
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;That shaves off a few seconds, but still not good enough.&lt;/p&gt;&lt;h4 id=&quot;switch_to_a_record&quot;&gt;Switch to a record&lt;/h4&gt;&lt;p&gt;Alright, well, what about using a record with named fields and cache the default empty node?&lt;/p&gt;&lt;pre&gt;&lt;code class=&quot;clojure&quot;&gt;(declare default-alphabet-trie-node)
+
+(def empty-alphabet-vector (vec (repeat 26 nil)))
+
+(defrecord AlphabetTrieNode [val terminates? children]
+  TrieNode
+  (add-substring [n [c &amp;amp; cs]]
+    (-&amp;gt;AlphabetTrieNode
+     val
+     (if c terminates? true)
+     (if c
+       (update children
+               (alpha-idx c)
+               #(add-substring (if (nil? %)
+                                 (default-alphabet-trie-node c)
+                                 %)
+                               cs))
+       children)))
+
+  (prefix [n s]
+    (-&amp;gt;&amp;gt; s
+         (seq)
+         (map alpha-idx)
+         (interpose :children)
+         (cons :children)
+         (get-in n)))
+
+  (count-words [n]
+    (loop [word-count (if terminates? 1 0)
+           legit-children (filter some? children)]
+      (if (seq legit-children)
+        (let [[child &amp;amp; cs] legit-children]
+          (recur (+ word-count
+                    (if (:terminates? child) 1 0))
+                 (apply conj cs
+                        (filter some? (:children child)))))
+        word-count)))
+
+  (count-w-prefix [n s]
+    (if-let [subn (prefix n s)]
+      (count-words subn)
+      0)))
+
+(def default-alphabet-trie-node
+  (memoize
+   (fn [val]
+     (-&amp;gt;AlphabetTrieNode val false empty-alphabet-vector))))
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;Oof, no, the code is both slower and way more complicated. The performance benefit of records/types is that field access is much faster, which we'll exploit later.&lt;/p&gt;&lt;h2 id=&quot;algorithmic/data_change&quot;&gt;Algorithmic/data change&lt;/h2&gt;&lt;p&gt;OK, let's re-evaluate, profile, and rethink the problem. (Tweaking rarely beats using the right data structures/algorithms.) We can trade off a bit of memory to save a ton of computation time. Instead of recomputing the subtree count afresh each time, we can keep track of the word count at each node, and increase as we go. Every time we add a word, we just increment the count of each parent node by 1. Then, the &lt;code&gt;count&lt;/code&gt; operation for a prefix is just a read-out of the value at that node. &lt;/p&gt;&lt;p&gt;Just to check, I applied this to the original solution, and got a speed-up of 10x, but it still wasn't fast enough, and using records enables some unique JVM optimizations, so we'll continue with that. Here are the changed parts:&lt;/p&gt;&lt;pre&gt;&lt;code class=&quot;clojure&quot;&gt;(defrecord AlphabetTrieNode [val terminates? word-count children]
+  TrieNode
+  (add-substring [n [c &amp;amp; cs]]
+    (-&amp;gt;AlphabetTrieNode
+     val
+     (if c terminates? true)
+     (inc word-count)
+     (if c
+       (update children
+               (alpha-idx c)
+               (fnil #(add-substring % cs)
+                     (default-alphabet-trie-node c)))
+       children)))
+
+  (count-words [n]
+    word-count)
+
+  (count-w-prefix [n s]
+    (if-let [subn (prefix n s)]
+      (count-words subn)
+      0)))
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;Now this speeds up by a factor of 50, and is simpler to boot! We're getting closer. Takeaway: always, always use the right data structures/algorithms.&lt;/p&gt;&lt;h2 id=&quot;jvm_optimizations&quot;&gt;JVM optimizations&lt;/h2&gt;&lt;p&gt;Clojure uses immutable data by default, for simplicity, ease of reasoning, and thread safety. But immutable data structures have an inherent overhead when &quot;mutating&quot;: copies are unavoidable. What if we ditch immutability? &lt;/p&gt;&lt;h4 id=&quot;mutable_fields&quot;&gt;Mutable fields&lt;/h4&gt;&lt;p&gt;We can do this by adding metadata to fields indicating they're &lt;code&gt;volatile-mutable&lt;/code&gt;. They can then be directly mutated in code.&lt;/p&gt;&lt;pre&gt;&lt;code class=&quot;clojure&quot;&gt;(deftype AlphabetTrieNode [val
+                           ^:volatile-mutable terminates?
+                           ^:volatile-mutable word-count
+                           ^:volatile-mutable children]
+  TrieNode
+  (add-substring [n [c &amp;amp; cs]]
+    (set! word-count (inc word-count))
+    (if-not c
+      (set! terminates? true)
+      (let [i (alpha-idx c)
+            child (children i)]
+        (when-not child
+          (-&amp;gt;&amp;gt; c
+               (default-alphabet-trie-node)
+               (assoc children i)
+               (set! children)))
+        (add-substring (children i) cs))))
+
+  (prefix [n s]
+    (loop [curr n
+           [c &amp;amp; cs] s]
+      (if (and c curr)
+        (recur (get (.children curr) (alpha-idx c))
+               cs)
+        curr)))
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;Note the use of &lt;code&gt;set!&lt;/code&gt; in the mutable code. We're finally seeing subsecond execution time for this exercise.&lt;/p&gt;&lt;h4 id=&quot;thread-unsafe_with_type_hints&quot;&gt;Thread-unsafe with type hints&lt;/h4&gt;&lt;p&gt;What else can we do? Well, if we don't care about thread safety, we can switch to &lt;code&gt;unsynchronized-mutable&lt;/code&gt; fields to avoid concurrency overhead. We can also switch to Java primitives and arrays with type hints. (The &lt;code&gt;val&lt;/code&gt; field was also removed, since it's redundant to the &lt;code&gt;children&lt;/code&gt; index.)&lt;/p&gt;&lt;pre&gt;&lt;code class=&quot;clojure&quot;&gt;(deftype AlphabetTrieNode [^:unsynchronized-mutable terminates?
+                           ^:unsynchronized-mutable ^long word-count
+                           ^:unsychronized-mutable ^objects children]
+  TrieNode
+  (add-substring [n [c &amp;amp; cs]]
+    (set! word-count (inc word-count))
+    (if-not c
+      (set! terminates? true)
+      (let [i (int (alpha-idx c))
+            child (aget children i)]
+        (when-not child
+          (aset children i (default-alphabet-trie-node c)))
+        (add-substring (aget children i) cs))))
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;Great, we're down to a half second now, and fast enough for HackerRank's picky tests. Done!&lt;/p&gt;&lt;h2 id=&quot;alternatives&quot;&gt;Alternatives&lt;/h2&gt;&lt;p&gt;There are other performance-enhancing techniques that either didn't apply here or didn't have an effect on the speed in this particular case (e.g., reflection was never an issue here), or were just paths not taken.&lt;/p&gt;&lt;h4 id=&quot;transients&quot;&gt;Transients&lt;/h4&gt;&lt;p&gt;Transients are a way to use mutable data structures with code that has the same shape as your regular immutable code. Unfortunately, they do not work with records/types. They helped a bit with the hash-maps, but only by ~20%.&lt;/p&gt;&lt;h4 id=&quot;reflection_and_type-hints&quot;&gt;Reflection and type-hints&lt;/h4&gt;&lt;p&gt;If the compiler can't figure out what a data type is when invoking a method, it will slow things down massively. Use &lt;code&gt;(set! *warn-on-reflection* true)&lt;/code&gt; in a file to check. I tested this, but there was no reflection in the hot path.&lt;/p&gt;&lt;p&gt;Unfortunately, it's not really possible to type-hint protocol method parameters, and you can't defer to a regular helper function with mutable fields, since mutable fields are private. At that point, you may want to try another method or use &lt;code&gt;definterface&lt;/code&gt;.&lt;/p&gt;&lt;h4 id=&quot;loop/recur&quot;&gt;Loop/recur&lt;/h4&gt;&lt;p&gt;If a &lt;code&gt;loop&lt;/code&gt; or function returns a value in the tail position, the current stack frame can be safely overwritten with the new value. &lt;code&gt;recur&lt;/code&gt; can be used to avoid blowing up a deep stack, and it probably eased memory pressure here, but I didn't analyze its performance effect separately.&lt;/p&gt;&lt;h2 id=&quot;results&quot;&gt;Results&lt;/h2&gt;&lt;p&gt;Here are the raw results. The first four are for standard hash-maps, the remainder use records/types.&lt;/p&gt;&lt;p&gt;&lt;/p&gt;&lt;div class=&quot;ct-chart ct-perfect-fourth&quot;&gt;&lt;/div&gt;&lt;p&gt;Hope you found this useful. Thanks to David Nolen for the feedback!&lt;/p&gt;&lt;p&gt;&lt;script src=&quot;/assets/chartist.min.js&quot;&gt;&lt;/script&gt; &lt;script src=&quot;/assets/clojure-trie-performance-chart.js&quot;&gt;&lt;/p&gt;&lt;/script&gt;&lt;/p&gt;
+</description>
+<pubDate>
+Thu, 31 May 2018 00:00:00 +0700
+</pubDate>
+</item>
+<item>
+<guid>
+http://www.modulolotus.net/posts/2017-05-17-thoughts-on-cryptopals-1/
+</guid>
+<link>
+http://www.modulolotus.net/posts/2017-05-17-thoughts-on-cryptopals-1/
+</link>
+<title>
+Using Clojure for the Cryptopals cryptography challenges
+</title>
+<description>
+&lt;p&gt;I've been going through the &lt;a href='https://cryptopals.com/'&gt;Cryptopals challenges&lt;/a&gt; recently. For those who don't know, they're a series of exercises based on real-life cryptography breaks, and they're lots of fun. You can see my code &lt;a href='https://github.com/KingMob/cryptopals-crypto-challenges'&gt;here&lt;/a&gt;.&lt;/p&gt;&lt;p&gt;Clojure is one of my favorite languages, so I decided to tackle them with it. Here are some thoughts on the first 3 sets, plus a few issues I ran into along the way. I hope this helps anyone else going through them without giving too much away.&lt;/p&gt;&lt;h2 id=&quot;general&amp;#95;challenge&amp;#95;notes&quot;&gt;General challenge notes&lt;/h2&gt;&lt;h3 id=&quot;challenge&amp;#95;3&amp;#95;-&amp;#95;single-byte&amp;#95;xor&amp;#95;cipher&quot;&gt;Challenge 3 - Single-byte XOR cipher&lt;/h3&gt;&lt;p&gt;When doing frequency analysis, the instructions make no mention of the chi-squared statistic, though that's probably a good starting point, and generalizes beyond alphabetic frequencies to any expected distribution. You can use it later when detecting ECB vs CBC, since you can use it to detect deviations from uniformity.&lt;/p&gt;&lt;h3 id=&quot;challenge&amp;#95;7&amp;#95;-&amp;#95;aes&amp;#95;in&amp;#95;ecb&amp;#95;mode&quot;&gt;Challenge 7 - AES in ECB mode&lt;/h3&gt;&lt;p&gt;The instructions &lt;em&gt;do&lt;/em&gt; mention this, but after chatting with someone else doing the challenges, realize that you do &lt;em&gt;not&lt;/em&gt; need to write AES yourself. Just use a default implementation for your language. You only need the single block transform (ECB), which you'll use to build on top of. For Java, all you need is javax.crypto.Cipher and SecretKeySpec, using &quot;AES/ECB/NoPadding&quot;.&lt;/p&gt;&lt;h3 id=&quot;challenge&amp;#95;9&amp;#95;-&amp;#95;implement&amp;#95;pkcs#7&amp;#95;padding&quot;&gt;Challenge 9 - Implement PKCS#7 padding&lt;/h3&gt;&lt;p&gt;When implementing PKCS#7 padding, the instructions make no mention of what to do when your data lines up perfectly on a block boundary. Only later, when doing the padding oracle challenge, did I realize you have to add an entire padding block (sixteen 16's) in that case.&lt;/p&gt;&lt;h3 id=&quot;challenge&amp;#95;17&amp;#95;-&amp;#95;the&amp;#95;cbc&amp;#95;padding&amp;#95;oracle&quot;&gt;Challenge 17 - The CBC padding oracle&lt;/h3&gt;&lt;p&gt;When altering the first byte of a block to see if it produces valid padding, you're aiming to alter it such that the padding ends in a single 1 byte. But &lt;em&gt;remember&lt;/em&gt;, if you test the &lt;em&gt;original, unaltered&lt;/em&gt; byte, you will &lt;em&gt;also&lt;/em&gt; get valid PKCS#7 padding (since it was correct to begin with), which is probably not 1.&lt;/p&gt;&lt;h3 id=&quot;challenge&amp;#95;18&amp;#95;-&amp;#95;implement&amp;#95;ctr,&amp;#95;the&amp;#95;stream&amp;#95;cipher&amp;#95;mode&quot;&gt;Challenge 18 - Implement CTR, the stream cipher mode&lt;/h3&gt;&lt;p&gt;Look carefully at the examples. At first glance it looks as if you're XORing a bunch of zeros, but the ninth byte is actually incrementing.&lt;/p&gt;&lt;h3 id=&quot;challenge&amp;#95;23&amp;#95;-&amp;#95;clone&amp;#95;an&amp;#95;mt19937&amp;#95;rng&amp;#95;from&amp;#95;its&amp;#95;output&quot;&gt;Challenge 23 - Clone an MT19937 RNG from its output&lt;/h3&gt;&lt;p&gt;Inverting the &lt;a href='https://en.wikipedia.org/wiki/Mersenne_Twister'&gt;Mersenne Twister&lt;/a&gt;'s temper function has a computationally simple version. It's not necessary to use brute force, inverse matrix multiplication, or a constraint solver. It can be done with just bit operations. The key insight is that XORing an integer with a shifted version of itself results in many of the bits in the output being identical (since the shifted-in bits are 0). You can then shift &lt;em&gt;those&lt;/em&gt; bits and XOR again to obtain &lt;em&gt;more&lt;/em&gt; bits, repeating until you have the whole thing.&lt;/p&gt;&lt;h2 id=&quot;clojure&amp;#95;/&amp;#95;java-specific&amp;#95;issues&quot;&gt;Clojure / Java-specific issues&lt;/h2&gt;&lt;h3 id=&quot;poor&amp;#95;primitive&amp;#95;support&amp;#95;in&amp;#95;jvm&amp;#95;and&amp;#95;clojure&quot;&gt;Poor primitive support in JVM and Clojure&lt;/h3&gt;&lt;p&gt;The bread and butter of cryptography is byte-level manipulation. Unfortunately, the JVM treats bytes as second-class citizens (e.g., many methods on Integer/Long have no Byte counterpart), and lacks support for unsigned integer types. On top of this, Clojure defaults to 64-bit longs everywhere, necessitating a lot of conversion. I ended up writing many conversion routines just for basic support, and leaving integers in the default long type for compatibility.&lt;/p&gt;&lt;p&gt;The single biggest thing to watch for was when I got deep into bit-shifting code while building the &lt;a href='https://en.wikipedia.org/wiki/Mersenne_Twister'&gt;Mersenne Twister&lt;/a&gt; random number generator. When everything is a long, unsigned right bit shifts &lt;strong&gt;will not do what you expect&lt;/strong&gt;. The 32-bit version of the Mersenne Twister (MT) relies on unsigned 32-bit ints. But unsigned shifting adds zeros at the end, which, if you're using a larger data type, will result in the zeros entering &lt;em&gt;above&lt;/em&gt; the bits of interest. E.g., consider the case where all bits are set to 1 (in two's complement, this is -1), and you do an unsigned shift right by 16 bits. You &lt;em&gt;want&lt;/em&gt;:&lt;/p&gt;&lt;p&gt;&lt;code&gt;00000000000000001111111111111111&lt;/code&gt;&lt;/p&gt;&lt;p&gt;but you &lt;em&gt;get&lt;/em&gt;:&lt;/p&gt;&lt;p&gt;&lt;code&gt;0000000000000000111111111111111111111111111111111111111111111111&lt;/code&gt;&lt;/p&gt;&lt;p&gt;Since you only want the right-most 32 bits, it appears as if shifting had no effect!&lt;/p&gt;&lt;h2 id=&quot;final&amp;#95;thoughts&quot;&gt;Final Thoughts&lt;/h2&gt;&lt;ol&gt;&lt;li&gt;Some of these ciphers are so broken, I'm amazed they were ever used. Apparently, the simple substitution cipher (replace each letter with the letter &lt;em&gt;n&lt;/em&gt; higher) was in use as late as 1915 by the Russian army, despite frequency analysis having been described a millennia (!) earlier.&lt;/li&gt;&lt;li&gt;Almost everything decrypts to Vanilla Ice lyrics. Unfortunately, there's probably nothing hidden in &lt;em&gt;them&lt;/em&gt;.&lt;/li&gt;&lt;/ol&gt;
+</description>
+<pubDate>
+Wed, 17 May 2017 00:00:00 +0700
+</pubDate>
+</item>
+</channel>
+</rss>

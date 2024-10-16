@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <title>Modulo Lotus: Premature optimization is the root of all hair loss</title>
+        <meta name="description" content="">
+        <meta name="keywords" content="">
+        <meta content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" name="viewport">
+
+        <link rel="apple-touch-icon" sizes="180x180" href="img/apple-touch-icon.png">
+        <link rel="icon" type="image/png" sizes="32x32" href="img/favicon-32x32.png">
+        <link rel="icon" type="image/png" sizes="16x16" href="img/favicon-16x16.png">
+        <link rel="manifest" href="img/site.webmanifest">
+        <link rel="mask-icon" href="img/safari-pinned-tab.svg" color="#522158">
+        <meta name="msapplication-TileColor" content="#9f00a7">
+        <meta name="theme-color" content="#b942c7">
+
+        <!-- <link href="https://fonts.googleapis.com/css?family=Montserrat:400,700|Oxygen:300,400,700|Inconsolata" rel="stylesheet"> -->
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Fira+Mono:wght@400;500;700&family=Lato:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&family=Montserrat:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&display=swap" rel="stylesheet"> 
+        <link href="/css/normalize.css" rel="stylesheet" type="text/css" />
+        <link href="/css/blog.css" rel="stylesheet" type="text/css" />
+        <link href="/css/lotus-highlightjs.min.css" rel="stylesheet" type="text/css" />
+        <script async src="https://www.googletagmanager.com/gtag/js?id=G-D5DMZFWW41"></script>
+        <script>
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+
+            gtag('config', 'G-D5DMZFWW41');
+        </script>
+    </head>
+    <body>
+        <aside id="sidebar">
+            <div id="logo">
+                <a title="Modulo Lotus" href="/">
+                    <img class="icon" src="/img/white-lotus.svg">
+                    <div class="text desktop-and-tablet-only">Modulo<br>Lotus</div>
+                    <div class="text mobile-only">Modulo Lotus</div>
+                </a>
+            </div>
+
+            <nav id="sidebar-links">
+                <nav id="menucont">
+                    <div class="menutitle">
+                        <svg class="icon icon-menu" aria-hidden="true"><use xlink:href="/img/icons.svg#icon-menu"></use></svg><span class="menu-text">Menu</span>
+                    </div>
+                    <ul class="menu">
+                        <li ><a title="Home" href="/"><div class="menu-item-text">Home</div></a></li>
+                        <li ><a title="Archives" href="/archives/"><div class="menu-item-text">Archives</div></a></li>
+                        
+                        <li ><a title="Tags" href="/tags/"><div class="menu-item-text">Tags</div></a></li>
+                        
+                        
+                        <li >
+                            <a href="/now/"><div class="menu-item-text">Now</div></a>
+                        </li>
+                        
+                        <li >
+                            <a href="/about/"><div class="menu-item-text">About</div></a>
+                        </li>
+                        
+                        <!-- <li><a title="RSS" href="/feed.xml"><div class="menu-item-text">RSS</div></a></li> -->
+                    </ul>
+                </nav>
+
+                <nav id="socialmedia">
+                    <ul>
+                        <li><a title="LinkedIn" href="https://www.linkedin.com/in/matthewdavidson1" rel="external"><svg class="icon icon-linkedin"><use xlink:href="/img/icons.svg#icon-linkedin"></use></svg></a></li>
+                        <li><a title="GitHub" href="https://github.com/KingMob" rel="external"><svg class="icon icon-github-circled"><use xlink:href="/img/icons.svg#icon-github-circled"></use></svg></a></li>
+                        <li><a title="RSS Feed" href="/feed.xml"><svg class="icon icon-rss-squared"><use xlink:href="/img/icons.svg#icon-rss-squared"></use></svg></a></li>
+                    </ul>
+                </nav>
+            </nav>
+        </aside>
+
+        <article id="main">
+            
+<div id="post">
+    <div class="post-header">
+    <div id="post-meta">
+        <h1>Premature optimization is the root of all hair loss</h1>
+        <div class="byline">
+            <span class="date">July 11, 2014</span>
+            
+        </div>
+    </div>
+</div>
+<div>
+    
+    <p>When faced with a need to speed up code, the general advice is to profile it to get an accurate picture of where time is being spent. Many of you have heard by now the old Knuth quote, "Premature optimization is the root of all evil." While I usually remember this, what follows is a bit of a cautionary tale of what happens when you <em>think</em> you know where the slowdown is (or will be), instead of bothering to actually find out.</p><h2 id="the&#95;puzzle">The puzzle</h2><p>A while back, I decided to tackle Spotify's online puzzles. You can see my solutions <a href='https://github.com/KingMob/Spotify-puzzles'>here</a>. The way it worked was, you coded up your answer in either C, C++, Python or Java, mailed it off to an automatic judge, and would then get a response back telling you if it failed on some input or wasn't fast enough. Two of the problems were quite easy, but the last turned out to be tricky, <em>though not as tricky as I made it</em>.</p><p>You can see an archive of the puzzle page <a href='/supplemental/Bilateral%20Projects%20Puzzlecool%20-%20Spotify.html'>here</a>. The basic problem is that there are a bunch of Spotify employees in either New York or Sweden, and every employee in one location is a member of one or more paired teams with an employee in the other location. There's an upcoming Spotify meeting in Barbados, and someone from every team needs to be there to represent the team. To keep travel costs down, Spotify wants to determine the smallest set of people it needs to have all teams represented.</p><p>Now, some of you who took an algorithms class recently may already recognize the problem, but for the rest of us, the structure is that of a bipartite graph, a graph where every vertex (person) can be divided up into two groups (location), and every edge (team) is only <em>between</em> the groups, and never <em>within</em> one. The problem of determining the minimal set of vertices that is attached to every edge is called the minimum vertex cover problem, and for bipartite graphs, Konig's theorem demonstrated that it's equivalent to a finding a maximum matching, which is the largest set(s) of edges that don't share any vertices.</p><p>Clearly, such a problem with deep roots in graph theory requires proper selection of the appropriate algorithm, right?</p><h2 id="the&#95;algorithms">The algorithms</h2><p>I originally started in Java with a naive algorithm, continually picking the person who was on the most remaining teams. It seemed to work on the two small examples listed on the problem page, so I submitted it and... no, it gave incorrect answers. Well, I didn't have access to Spotify's test data, so I started making my own. I quickly realized that my solution must have been <em>way</em> off when it returned a list of people that exceeded the total number of employees in one country. Without even knowing the details of my randomly-generated data set, I knew that was wrong, because I could have sent fewer people by just choosing everyone in New York or Sweden. HR would have hated my solution as much as the employees would have loved it.</p><p>Since the naive solution wasn't working, I knew there had to be more to the problem, so, I started digging around and found out it was a bipartite maximum matching graph problem. After that, I scanned the literature to choose the "right" algorithm. The Hopcroft-Karp algorithm has the best time, with an O(E√V) worst-case time, where E is the number of edges, and V is the number of vertices. But I chose the relabel-to-front variant of the push-relabel max-flow algorithm (Cormen et al, Introduction to Algorithms, 3rd ed., pp. 748), since according to some empirical papers (Cherkassky 1998; Setubal 1996), it outperforms the Hopcroft-Karp algorithm in practice, despite having a O(V<sup>3</sup>) running time. It's one of the more complicated algorithms to code, but I was convinced algorithmic performance would be an issue. I wrote a Java version, submitted it, and... success, it returned correct answers for all inputs but wait... the automatic judge said it's too slow.</p><p>Hmm, maybe I needed to use the bipush selection variant to improve push-relabel performance. Code code code. Nope, still too slow. Maybe I should have tried the Hopcroft-Karp variant after all? I started on that, but then I thought, well, the problem size is actually pretty small, and big-O performance is only guaranteed asymptotically, so maybe the running time is being dominated by incidental overhead. Instead of pausing to consider, I wrote a simpler breadth-first search (BFS) for augmenting paths.</p><p>Nope, still too slow.</p><h2 id="the&#95;"eureka"&#95;moment">The "Eureka" moment</h2><p>At this point, I wanted to <code>kill -9</code> some server process in Sweden. <strong>But instead, I did what I should have done from the start: profiled.</strong> The vertex selection algorithm took only ~200 ms on the largest problem size. Push-relabel and BFS were not too far apart. The remaining setup and I/O only added a bit more to the execution time. What was going on?</p><p>Then finally, a horrific realization started to dawn on me. The code judge wasn't examining the algorithmically-interesting parts of my code (how could it?), it was just timing the whole thing from start to finish. So, with a feeling of dread in my stomach, I clocked the whole thing with the maximum problem size from the command-line and it took 5 seconds, only ~400 ms of which was my code. <strong>The entire time was dominated by Java start-up; algorithms were completely irrelevant for the specified problem size.</strong> At this point, everyone in the coffee shop probably heard me curse.</p><p>So what did I do? Well, I considered teaching myself Python, which I thought would be fun, but I suspected it might suffer the same startup overhead. In the end, I rewrote the entire thing using the BFS algorithm in C++, which I hadn't used since college. I submitted it and finally... success!</p><h2 id="coda">Coda</h2><p>What did I (re)learn?</p><p><strong>Profile first.</strong> Without knowing where/what to optimize, you're flying blind and possibly wasting time. Data trumps intuition in this case.</p>
+</div>
+
+<div id="post-tags">
+    <br/>
+    <b>Tags: </b>
+    
+    <a href="/tags/graph theory/">graph theory</a>
+    
+    <a href="/tags/optimization/">optimization</a>
+    
+</div>
+
+<br/>
+
+
+    
+    <div id="prev-next">
+    
+    <a class="prev" href="/posts/2017-03-28-setting-up-algo/"><svg class="icon icon-circle-left"><use xlink:href="/img/icons.svg#icon-circle-left"></use></svg><div class="nav-text">Using Algo to setup the strongSwan VPN</div></a>
+    
+    
+    <a class="next" href="/posts/2014-06-08-setting-up-rails/"><div class="nav-text"">Setting up Rails 4.0.0 with Nginx and Postgres on Digital Ocean</div><svg class="icon icon-circle-right"><use xlink:href="/img/icons.svg#icon-circle-right"></use></svg></a>
+    
+</div>
+
+    
+
+    
+
+
+</div>
+
+            <hr/>
+            <div id="footercont">
+                Copyright &copy; 2024 Matthew Davidson
+                <br>Powered by <a href="http://cryogenweb.org">Cryogen</a>
+                <br>Theme by <a href="http://github.com/KingMob">KingMob</a>
+            </div>
+        </article>
+
+        <script src="/js/highlight.pack.js" type="text/javascript"></script>
+        <script>hljs.initHighlightingOnLoad();</script>
+
+        
+        
+    </body>
+</html>

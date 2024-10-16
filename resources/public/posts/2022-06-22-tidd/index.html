@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <title>Modulo Lotus: Test-induced design damage in Clojure</title>
+        <meta name="description" content="">
+        <meta name="keywords" content="">
+        <meta content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" name="viewport">
+
+        <link rel="apple-touch-icon" sizes="180x180" href="img/apple-touch-icon.png">
+        <link rel="icon" type="image/png" sizes="32x32" href="img/favicon-32x32.png">
+        <link rel="icon" type="image/png" sizes="16x16" href="img/favicon-16x16.png">
+        <link rel="manifest" href="img/site.webmanifest">
+        <link rel="mask-icon" href="img/safari-pinned-tab.svg" color="#522158">
+        <meta name="msapplication-TileColor" content="#9f00a7">
+        <meta name="theme-color" content="#b942c7">
+
+        <!-- <link href="https://fonts.googleapis.com/css?family=Montserrat:400,700|Oxygen:300,400,700|Inconsolata" rel="stylesheet"> -->
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Fira+Mono:wght@400;500;700&family=Lato:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&family=Montserrat:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&display=swap" rel="stylesheet"> 
+        <link href="/css/normalize.css" rel="stylesheet" type="text/css" />
+        <link href="/css/blog.css" rel="stylesheet" type="text/css" />
+        <link href="/css/lotus-highlightjs.min.css" rel="stylesheet" type="text/css" />
+        <script async src="https://www.googletagmanager.com/gtag/js?id=G-D5DMZFWW41"></script>
+        <script>
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+
+            gtag('config', 'G-D5DMZFWW41');
+        </script>
+    </head>
+    <body>
+        <aside id="sidebar">
+            <div id="logo">
+                <a title="Modulo Lotus" href="/">
+                    <img class="icon" src="/img/white-lotus.svg">
+                    <div class="text desktop-and-tablet-only">Modulo<br>Lotus</div>
+                    <div class="text mobile-only">Modulo Lotus</div>
+                </a>
+            </div>
+
+            <nav id="sidebar-links">
+                <nav id="menucont">
+                    <div class="menutitle">
+                        <svg class="icon icon-menu" aria-hidden="true"><use xlink:href="/img/icons.svg#icon-menu"></use></svg><span class="menu-text">Menu</span>
+                    </div>
+                    <ul class="menu">
+                        <li ><a title="Home" href="/"><div class="menu-item-text">Home</div></a></li>
+                        <li ><a title="Archives" href="/archives/"><div class="menu-item-text">Archives</div></a></li>
+                        
+                        <li ><a title="Tags" href="/tags/"><div class="menu-item-text">Tags</div></a></li>
+                        
+                        
+                        <li >
+                            <a href="/now/"><div class="menu-item-text">Now</div></a>
+                        </li>
+                        
+                        <li >
+                            <a href="/about/"><div class="menu-item-text">About</div></a>
+                        </li>
+                        
+                        <!-- <li><a title="RSS" href="/feed.xml"><div class="menu-item-text">RSS</div></a></li> -->
+                    </ul>
+                </nav>
+
+                <nav id="socialmedia">
+                    <ul>
+                        <li><a title="LinkedIn" href="https://www.linkedin.com/in/matthewdavidson1" rel="external"><svg class="icon icon-linkedin"><use xlink:href="/img/icons.svg#icon-linkedin"></use></svg></a></li>
+                        <li><a title="GitHub" href="https://github.com/KingMob" rel="external"><svg class="icon icon-github-circled"><use xlink:href="/img/icons.svg#icon-github-circled"></use></svg></a></li>
+                        <li><a title="RSS Feed" href="/feed.xml"><svg class="icon icon-rss-squared"><use xlink:href="/img/icons.svg#icon-rss-squared"></use></svg></a></li>
+                    </ul>
+                </nav>
+            </nav>
+        </aside>
+
+        <article id="main">
+            
+<div id="post">
+    <div class="post-header">
+    <div id="post-meta">
+        <h1>Test-induced design damage in Clojure</h1>
+        <div class="byline">
+            <span class="date">June 22, 2022</span>
+            
+        </div>
+    </div>
+</div>
+<div>
+    
+     <p>Writing tests is the software equivalent of doing the dishes: unloved, but necessary. Unfortunately, because language designers are almost never interested in testing, it's usually a second-class concept, assuming the language even bothers to treat it as anything different from the rest of code in the first place. This is unfortunate, because it can have detrimental consequences to your code design.</p><p>Test-Induced Design Damage (TIDD) is not a new concept. DHH of Rails <a href='https://dhh.dk/2014/test-induced-design-damage.html'>wrote about TIDD</a> back in 2014. This is not even a new concept for Clojure, as Eric Normand <a href='https://ericnormand.me/issues/purelyfunctional-tv-newsletter-325-tip-don-t-use-a-protocol-to-make-testing-easier'>wrote a newsletter about it</a> in the past. Unfortunately, Normand's post didn't have the impact I'd hoped for, nor did it go into enough detail for me, so I'm going to try and give examples that will help people understand the issue and the trade-offs a bit better.</p><h2 id="what&#95;is&#95;test-induced&#95;design&#95;damage?">What is test-induced design damage?</h2><p>I suggest you read DHH's post above, but in short, it's altering code to better support tests at the expense of other aspects of the system. Communities like Test-Driven Development (TDD) have taken it as <i>a priori</i> gospel that better testing is a primary goal, while downplaying the consequences. As they say, software developers know the value of everything and the cost of nothing.</p><p>For example, extracting hidden/private/closed-over code so it can be mocked for testing also carries detriments like requiring names (it usually can't be anonymous any more), cluttering docs, expanding argument lists (since support objects must be passed-in or injected), potential misuse (if users can now directly access/create/use an object when they shouldn't), and indirection overhead (both mental and code-based).</p><p><strong>To be clear: alterations that support testing may have other benefits that justify their use, but this needs to be evaluated on a case-by-case basis, rather than assuming improved testing is a sufficient justification <i>itself</i>.</strong> </p><p>It's even possible that complicating your code to support testing actually <strong>increases the number of bugs</strong>, despite more testing. This is because, all other things being equal, larger codebases have more bugs<a href='#fn-1' id='fnref1'><sup>1</sup></a>.</p><p>The rest of this post will look at changes made <em>solely</em> for testing. I'll show you some examples of TIDD, in order of increasing complexity. </p><h2 id="examples">Examples</h2><p>Imagine you have some function that takes too long to use in local tests. Maybe it makes a network call that takes a while.</p><p>Let's say you made a plain function:</p><pre><code class="clojure">&#40;defn my-fn 
+  &#91;&#93;
+  &#40;call-prod-endpoint&#41;&#41;
+
+;; usage
+&#40;my-fn&#41;
+</code></pre><p>You decide you need to mock it for testing, so what are your options?</p><h3 id="redefining&#95;via&#95;<code>with-redefs</code>&#95;or&#95;<code>with-redefs-fn</code>">Redefining via <code>with-redefs</code> or <code>with-redefs-fn</code></h3><p>Using <code>with-redefs</code>, you can temporarily replace the root definition for testing without touching the original code at all (<code>alter-var-root</code> can work, too, though it's more cumbersome to use). This sounds like the perfect way to leave non-testing code clean, right? Eric Normand suggested this in <a href='https://ericnormand.me/issues/purelyfunctional-tv-newsletter-325-tip-don-t-use-a-protocol-to-make-testing-easier'>his original newsletter.</a></p><pre><code class="clojure">&#40;defn my-fn 
+  &#91;&#93;
+  &#40;call-prod-endpoint&#41;&#41;
+
+;; test
+&#40;deftest redef-ing-my-fn
+  &#40;with-redefs &#91;my-fn #&#40;call-mock-endpoint&#41;&#93;
+    &#40;is &#40;= &#40;my-fn&#41; some-expected-result&#41;&#41;&#41;&#41;
+</code></pre><p>Unfortunately, <code>with-redefs</code> requires a lot of care with multi-threaded / lazy code, since the var root definition is changed for <i>all</i> threads for a limited time. Code in other threads that run after the <code>with-redefs</code> ends can easily use an unintended value. Tim Baldridge wrote a long post on <a href='https://cognitect.com/blog/2016/9/15/works-on-my-machine-understanding-var-bindings-and-roots'>how vars work under the hood and why redefs can be tricky</a>, and it's worth reading before using functions like <code>binding/with-redefs</code> in any context.</p><p>You <i>could</i> safely use <code>with-redefs</code> if you can guarantee all of the following:</p><ol><li>Don't run multiple tests simultaneously - slower unit testing is the price</li><li>Don't rely on background threads - these are fragile anyway, and create timing concerns even if you don't redef anything</li><li>Wrap the entire body of the test in <code>with-redefs</code> - you don't need to worry about lazy evaluation happening after <code>with-redefs</code> ends if you've already forced the values you need</li><li>Ensure you always join with other threads before exiting the <code>with-redefs</code> if those threads do anything an assertion relies on - this may require code distortion itself</li></ol><p>These are a lot of constraints. #1 is undesirable if easy, but ensuring #2 and #4 may range from annoying to infeasible without altering our main code, which violates the goal of avoiding TIDD.</p><p>(There's also a long discussion about <code>with-redefs</code> in the <a href='https://www.reddit.com/r/Clojure/comments/ble9k4/dont_use_a_protocol_to_make_testing_easier/'>Reddit comments on Eric Normand's original newsletter</a>. Unfortunately, Eric's example involved a database connection, which inherently has state and was thus a stronger candidate for protocols/components, and many people latched onto that aspect instead of considering the bigger picture.)</p><h3 id="rebinding&#95;via&#95;<code>binding</code>&#95;or&#95;<code>with-bindings</code>">Rebinding via <code>binding</code> or <code>with-bindings</code></h3><p>This is similar to the above, and works, but it requires you declare <code>my-fn</code> as <code>&#94;:dynamic</code>. </p><pre><code class="clojure">&#40;defn &#94;:dynamic my-fn 
+  &#91;&#93;
+  &#40;call-prod-endpoint&#41;&#41;
+
+;; test usage
+&#40;deftest rebinding-my-fn
+  &#40;binding &#91;my-fn #&#40;call-mock-endpoint&#41;&#93;
+    &#40;is &#40;= &#40;my-fn&#41; some-expected-result&#41;&#41;&#41;&#41;  
+</code></pre><p>On the upside, it only changes the local thread and its children's definition, so tests can run in parallel. Care must still be taken with background threads, but you should avoid those in tests anyway. For all other started threads, they'll carry the binding frame with them, even if the top thread ended, so it's much safer for multi-threaded code.</p><p>However, this is still a slight alteration of the code. Declaring it as <code>&#94;:dynamic</code> means it's slightly slower to execute in production code. Worse, it sends a false signal to users that they may need/want to rebind it. Plus, it suffers a variant of the expression problem, since you cannot mark outside vars as <code>&#94;:dynamic</code> without forking the code. (One can argue you shouldn't test outside code, but creating wrapper fns just to mock is TIDD again.) Still, this is almost the ideal solution, if not for <code>&#94;:dynamic</code>.<a href='#fn-2' id='fnref2'><sup>2</sup></a></p><h3 id="branch&#95;inside&#95;the&#95;function&#95;on&#95;a&#95;testing&#95;flag">Branch inside the function on a testing flag</h3><p>This might be an option if you already use feature flags heavily. For testing, it would look something like: </p><pre><code class="clojure">&#40;defn my-fn 
+  &#91;&#93;
+  &#40;if-not global.flags/is-testing?
+    &#40;call-prod-endpoint&#41;&#41;
+    &#40;call-mock-endpoint&#41;&#41;
+</code></pre><p>Then you need to set <code>global.flags/is-testing?</code> only when testing. This keeps the function signature clean, but clutters the global namespace, complicates the function body, makes multiple mock behaviors difficult, and adds branching overhead. </p><p>You could also use compile-time constants or macros to make this pattern more efficient, but it would still be less flexible and cluttered.</p><h3 id="multimethods">Multimethods</h3><p>What about polymorphism? You could make <code>my-fn</code> polymorphic with multimethods by dispatching based on whether you're running normally or for testing:</p><pre><code class="clojure">
+&#40;defmulti my-fn &#40;fn &#91;type&#93; type&#41;&#41;
+
+&#40;defmethod my-fn :normal &#91;&#95;&#93;
+  &#40;call-prod-endpoint&#41;&#41;
+
+&#40;defmethod my-fn :test &#91;&#95;&#93;
+  &#40;call-mock-endpoint&#41;&#41;
+
+;; usage
+&#40;my-fn :normal&#41;
+
+;; test usage
+&#40;deftest polymorphic-multimethod-test
+  &#40;is &#40;= &#40;my-fn :test&#41; some-expected-result&#41;&#41;&#41;
+
+</code></pre><p>The problem is you now have more code, and you have to weave the right dispatch value into <strong>all</strong> calls to <code>my-fn</code> (and possibly their parents), which alters the param signatures. You could set the dispatch value as a global var, but that has many of the same problems as internal branching does.</p><p>Which leaves protocols...</p><h2 id="protocols">Protocols</h2><p>The pattern I've seen the most in real Clojure code, and unfortunately, the <strong>most complicated</strong> option, is to replace plain functions with protocols and records.</p><pre><code class="clojure">&#40;defprotocol MyProtocol
+  &#40;my-fn &#91;&#95;&#93;&#41;&#41;
+
+&#40;defrecord MyFunctionner &#91;&#93;
+  MyProtocol
+  &#40;my-fn &#91;&#95;&#93;
+    &#40;call-prod-endpoint&#41;&#41;&#41;
+
+&#40;defrecord MyTestFunctionner &#91;&#93;
+  MyProtocol
+  &#40;my-fn &#91;&#95;&#93;
+    &#40;call-mock-endpoint&#41;&#41;&#41;
+
+;; non-default constructors are commonly added
+&#40;defn my-functionner &#91;&#93;
+  &#40;-&gt;MyFunctionner&#41;&#41;
+
+&#40;defn my-test-functionner &#91;&#93;
+  &#40;-&gt;MyTestFunctionner&#41;&#41;
+
+;; usage 
+
+&#40;let &#91;my-fn-er &#40;my-functionner&#41;&#93;
+  &#40;my-fn my-fn-er&#41;&#41;
+
+
+;; add component deps for bonus points
+&#40;def system
+ ...
+ :my-functioner &#40;my-functionner&#41;
+ :something-else &#40;component/using
+                   &#40;something-else&#41;
+                   &#91;:my-functionner ...&#93;&#41;&#41;
+</code></pre><p>Protocols have the inherent problem of requiring state, since they can only be used with an object. Even if the type/record defines no state internally, <i>lifecycle state itself must be taken into consideration</i>. Unlike a function or multimethod, which is effectively available once its namespace is required, protocol functions cannot be used before an object is created or after it's destroyed. Plus, the object must be passed around everywhere it's used, cluttering up argument lists and adding to naming overhead everywhere.</p><p>For bonus complexity, non-default constructors are extremely common additions, and once people have a type/record with a lifecycle, they add it to their initialization system, so they end up writing a bunch of extra Component/Integrant/etc code to support it, too.</p><p><strong>Is all this worth it?</strong> How many protocols have you seen that exist <i>just</i> to support testing and nothing else?</p><h2 id="solution:&#95;dynamic&#95;redef">Solution: dynamic redef</h2><p>The solution I've settled on is <a href='https://medium.com/helpshift-engineering/a-study-in-parallelising-tests-b5253817beae'>one created by Mourjo Sen</a> and I think it deserves to be more widely known. It's encapsulated in a mini-library called <a href='https://clojars.org/me.mourjo/dynamic-redef'>dynamic-redef</a>.</p><p>The basic idea is to mimic the propagated thread-local behavior of <code>binding</code> without having to declare anything <code>&#94;:dynamic</code> or mess with our main code. It uses <code>alter-var-root</code> to permanently replace the root definition of a function with one that looks up its current definition in a <code>&#94;:dynamic</code> map but falls back to the original definition if no overrides are found. Then "dynamically redefining" a function involves adding a new binding frame under the hood with updated fn definitions for the dynamic function lookup map.</p><p>Here's his original gist of the technique: <script src="https://gist.github.com/mourjo/387e78fcb62ab67392115c2ed616c9ab.js"></script></p><p>Advantages:</p><ol><li>Allows you to leave your main code <i>completely</i> unaltered</li><li>Incurs no performance penalty in production code</li><li>Replaces definitions in a more thread-safe manner than raw <code>with-redefs</code></li></ol><p>Disadvantages:</p><ol><li>Does not play well with background threads (though you should avoid those in tests when possible)</li><li>Like <code>binding</code>, does not work with plain Java threading, which doesn't use Clojure thread frames</li></ol><h3 id="summary">Summary</h3><p>This is not meant to eliminate testing-specific protocols/records, but to offer an option that's more suitable in some use cases. My personal "middle way" of testing is, examine the thing to be mocked and determine if it has inherent state. If so, it's probably a better fit for protocols. But if not, don't complicate your code just to test it. Give dynamic redef a try. It may be unfamiliar, but it's simpler than the alternatives when it fits.</p><h6 id="footnotes">Footnotes</h6><ol class='footnotes'><li id='fn-1'>Code Complete has <a href='https://amartester.blogspot.com/2007/04/bugs-per-lines-of-code.html'>some industry-generated estimates on bugs/LOC</a>, but the much-discussed study, <a href='https://cacm.acm.org/magazines/2017/10/221326-a-large-scale-study-of-programming-languages-and-code-quality-in-github/fulltext'>A Large-Scale Study of Programming Languages and Code Quality in Github</a>, actually computed the overall effect of code size (independent of language) as a control variable. If you look at the discussion of the control variables in Table 6, "...they are all positive and significant". All else being equal, less code means fewer bugs.<a href='#fnref1'>&#8617;</a></li><li id='fn-2'>Technically, you don't have to declare a var <code>&#94;:dynamic</code> to use <code>binding</code> on it. There's an undocumented <code>.setDynamic</code> method on vars, but to use this dark art successfully, you'd have to invoke it before the compiler gets to any call sites with the var. Otherwise, it'll compile a call to the root definition, and never check for binding frames. I've seen some code that claims to do this reliably via macros, but it doesn't seem to work for me.<a href='#fnref2'>&#8617;</a></li></ol>
+</div>
+
+<div id="post-tags">
+    <br/>
+    <b>Tags: </b>
+    
+    <a href="/tags/clojure/">clojure</a>
+    
+    <a href="/tags/tidd/">tidd</a>
+    
+    <a href="/tags/redef/">redef</a>
+    
+    <a href="/tags/tdd/">tdd</a>
+    
+    <a href="/tags/dynamic redef/">dynamic redef</a>
+    
+    <a href="/tags/test/">test</a>
+    
+</div>
+
+<br/>
+
+
+    
+    <div id="prev-next">
+    
+    <a class="prev" href="/posts/2023-03-17-undertale-exapunks/"><svg class="icon icon-circle-left"><use xlink:href="/img/icons.svg#icon-circle-left"></use></svg><div class="nav-text">Undertale in EXAPUNKS</div></a>
+    
+    
+    <a class="next" href="/posts/2019-05-03-my-fav-idm/"><div class="nav-text"">Arrhythmic Beats - IDM</div><svg class="icon icon-circle-right"><use xlink:href="/img/icons.svg#icon-circle-right"></use></svg></a>
+    
+</div>
+
+    
+
+    
+
+
+</div>
+
+            <hr/>
+            <div id="footercont">
+                Copyright &copy; 2024 Matthew Davidson
+                <br>Powered by <a href="http://cryogenweb.org">Cryogen</a>
+                <br>Theme by <a href="http://github.com/KingMob">KingMob</a>
+            </div>
+        </article>
+
+        <script src="/js/highlight.pack.js" type="text/javascript"></script>
+        <script>hljs.initHighlightingOnLoad();</script>
+
+        
+        
+    </body>
+</html>
