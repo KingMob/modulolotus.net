@@ -3,10 +3,10 @@
  :page-index 0
  :navbar? true}
 
-_Updated 2023-6-20._
+_Updated 2024-10-16._
 
-Currently in Chiang Mai, Thailand. Applying for martial arts education visa this week.
+Still in Chiang Mai, Thailand. Will head to Vietnam for some visa and vacation stuff.
 
-Trying to validate ideas for a SaaS business. Reading a lot of Rob Walling's stuff.
+Finished the MIT gig a month ago. Now working on a SaaS idea for dead test elimination.
 
-Getting the Aleph HTTP/2 client work reviewed, thinking about how to add it to the server side.
+Adding bind support to the OSH shell for Oils.
