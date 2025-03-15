@@ -1,3 +1,23 @@
-.time-line-container>div:last-child .education__time>.education__line {
-    display: none;
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* @plugin "daisyui" {
+  themes: "modulo-lotus-light", "modulo-lotus-dark"  --default --prefersdark;
+} */
+
+@font-face {
+    font-family: 'Montserrat';
+    src: url('/fonts/Montserrat-SemiBold.ttf') format('truetype');
+    font-weight: 600;
+    font-style: normal;
+    font-display: swap;
+}
+
+:root {
+    --heading-font-family: 'Montserrat', sans-serif;
+}
+
+h1, h2, h3 {
+    font-family: var(--heading-font-family);
 }
