@@ -50,6 +50,11 @@ const {
 
 
 <script is:inline>
+	function getTheme(document) {
+		return localStorage.getItem("theme") || 
+			(window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+	}
+
 	function setTheme(document) {
 		const theme = getTheme(document);
 		document.documentElement.setAttribute("data-theme", theme);
