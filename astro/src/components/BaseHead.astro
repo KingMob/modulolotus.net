@@ -48,19 +48,22 @@ const {
 <meta property="twitter:description" content={description} />
 <meta property="twitter:image" content={new URL(image, Astro.url)} />
 
+
 <script is:inline>
-	if (localStorage.getItem("theme") === null) {
-		let setDark = localStorage.theme === "dark" ||
-				(!("theme" in localStorage) &&
-					window.matchMedia("(prefers-color-scheme: dark)").matches);
-		document.documentElement.setAttribute("data-theme", setDark ? "dark" : "light");
-	} else {
-		document.documentElement.setAttribute(
-			"data-theme",
-			localStorage.getItem("theme"),
-		);
+	function setTheme(document) {
+		const theme = getTheme(document);
+		document.documentElement.setAttribute("data-theme", theme);
+		// console.log("Set theme to " + theme + 
+		// 	(localStorage.getItem("theme") ? " from localStorage" : " from prefers-color-scheme"));
 	}
+
+	setTheme(document);
+
+	document.addEventListener("astro:before-swap", (event) => {
+		setTheme(event.newDocument);
+	});
 </script>
+
 <script>
 	import { themeChange } from "theme-change";
 	themeChange();
