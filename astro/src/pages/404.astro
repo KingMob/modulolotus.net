@@ -1,12 +1,18 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
+import WhiteLotusOutline from "../img/white-lotus-outline.svg";
 ---
-
-<BaseLayout title = "404: Not Found" includeSidebar={false}>
-  <div class="text-center">
-    <h1 class="text-9xl font-bold mb-4">🏝</h1>
-    <h1 class="text-9xl font-bold mb-2">404</h1>
-    <h3 class="text-2xl">I'm sorry, Mario, but the page you're looking for is in another castle.</h3>
-    <a class="btn btn-accent mt-9" href="/">Home</a>
+<BaseLayout title = "404: Vast Emptiness" includeSidebar={false}>
+  <div class="flex place-content-center"><WhiteLotusOutline /></div>
+  <div class="text-center text-lg">
+    <blockquote class="text-left my-8">
+      Emperor Wu asked the great teacher Bodhidharma,<br/>
+      “What is the first principle of the holy teaching?”<br/><br/>
+      Bodhidharma said, “Vast emptiness, nothing holy therein.”<br/><br/>
+      “Who are you, standing here in front of me?” asked the Emperor.<br/><br/>
+      <b class="text-secondary">“404: Page not found,”</b> said Bodhidharma.<br/><br/>
+      The Emperor didn't understand.
+    </blockquote>
+    <a class="btn btn-secondary" href="/">Home</a>
   </div>
 </BaseLayout>
