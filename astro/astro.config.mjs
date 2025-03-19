@@ -7,6 +7,9 @@ import tailwind from "@astrojs/tailwind";
 export default defineConfig({
   site: 'https://modulolotus.net',
   integrations: [mdx(), sitemap(), tailwind()],
+  redirects: {
+    "/posts/[...slug]": "/blog/[...slug]"
+  },
   experimental: {
     svg: true
   }
