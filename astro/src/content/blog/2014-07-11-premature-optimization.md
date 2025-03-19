@@ -4,7 +4,7 @@ pubDate: 2014-07-11
 tags:
   - optimization
   - graph theory
-description: "A cautionary tale about focusing on algorithmic optimization before profiling, where the author wasted time implementing fancy graph algorithms for a puzzle only to discover that Java startup time was the actual bottleneck."
+description: "A cautionary tale about focusing on algorithmic optimization before profiling. I wasted time implementing fancy graph algorithms for a puzzle only to discover that Java startup time was the actual bottleneck."
 ---
 
 

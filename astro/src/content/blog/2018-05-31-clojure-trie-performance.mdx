@@ -8,12 +8,12 @@ tags:
 description: "A detailed exploration of optimizing Clojure trie implementation for performance, showing the progression from idiomatic but slow code to highly optimized JVM-specific implementations with significant speed improvements through algorithmic changes and JVM optimizations."
 ---
 
-<link rel="stylesheet" href="/assets/chartist.min.css"></link>
-<link rel="stylesheet" href="/assets/chart.css"></link>
+<link rel="stylesheet" href="/supplemental/chartist.css"></link>
+<link rel="stylesheet" href="/supplemental/chart.css"></link>
     
 Last summer, I was doing HackerRank for fun and whiteboard practice, and I came across [a nifty little trie exercise](https://www.hackerrank.com/challenges/ctci-contacts/problem). The challenge was to add a list of contacts to a trie, and report on the number of contacts beginning with a list of prefixes.
 
-I used my favorite language, Clojure, and quickly arrived at the correct solution, but many of these coding exercise sites have time constraints, and the idiomatic Clojure was too slow.
+I used my favorite language at the time, Clojure, and quickly arrived at the correct solution, but many of these coding exercise sites have time constraints, and the idiomatic Clojure was too slow.
 
 What follows is how you take beautiful Clojure, and accelerate it when needed. (NB: Only do this for hot paths, this is not general Clojure style advice.) All the code is available [here](https://github.com/KingMob/clojure-trie-performance).
 
@@ -25,8 +25,9 @@ For a list of English words, the most straightforward implementation is a tree o
 
 In this diagram, you can see a representation of a trie storing the words: a, ale, all, alley, are, art, at, and ate. (Terminal nodes are tinted.)
 
-<img src="/img/Clojure-trie-example.svg" style="width: 50%; margin: 0 auto; display: block">
-
+<div class="bg-white mx-auto py-1 rounded-md">
+  <img src="/supplemental/Clojure-trie-example.svg" alt="trie example" />
+</div>
 
 ## Solutions
 
@@ -238,10 +239,12 @@ If a `loop` or function returns a value in the tail position, the current stack 
 ## Results
 Here are the raw results. The first four are for standard hash-maps, the remainder use records/types.
 
-<div class="ct-chart ct-perfect-fourth"></div>
+<div class="bg-white mx-auto p-2 rounded-md">
+  <div class="ct-chart ct-perfect-fourth"></div>
+</div>
 
 
 Hope you found this useful. Thanks to David Nolen for the feedback!
 
-<script src="/assets/chartist.min.js"></script>
-<script src="/assets/clojure-trie-performance-chart.js">
+<script src="/supplemental/chartist.min.js"></script>
+<script src="/supplemental/clojure-trie-performance-chart.js"></script>
