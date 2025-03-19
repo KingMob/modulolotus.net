@@ -1,0 +1,64 @@
+{
+  "$ref": "#/definitions/store",
+  "definitions": {
+    "store": {
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "custom_link_label": {
+          "type": "string"
+        },
+        "custom_link": {
+          "type": "string"
+        },
+        "updatedDate": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "date-time"
+            },
+            {
+              "type": "string",
+              "format": "date"
+            },
+            {
+              "type": "integer",
+              "format": "unix-time"
+            }
+          ]
+        },
+        "pricing": {
+          "type": "string"
+        },
+        "oldPricing": {
+          "type": "string"
+        },
+        "badge": {
+          "type": "string"
+        },
+        "checkoutUrl": {
+          "type": "string"
+        },
+        "heroImage": {
+          "type": "string"
+        },
+        "$schema": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "title",
+        "description",
+        "custom_link_label",
+        "updatedDate"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}
