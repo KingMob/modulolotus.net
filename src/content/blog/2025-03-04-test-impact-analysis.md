@@ -8,7 +8,7 @@ tags:
   - test-impact analysis 
   - optimization 
   - performance
-description: "When we make a change to code, we should only run tests that can be proven to be relevant. Running unrelated tests tells you nothing useful, wastes electrici..."
+description: "Test-impact analysis (TIA) optimizes CI pipelines by running only relevant tests based on code changes, reducing test execution time and resource consumption."
 ---
 
 When we make a change to code, we should only run tests that can be proven to be relevant. Running unrelated tests tells you nothing useful, wastes electricity, and makes your scrum master cry.
