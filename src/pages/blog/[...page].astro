@@ -15,8 +15,9 @@ const { page } = Astro.props;
 ---
 
 <BaseLayout title="Blog" sideBarActiveItemID="blog">
-  <div class="mb-5">
+  <div class="flex mb-5">
     <h1 class="text-3xl w-full font-bold">Blog Posts</h1>
+    <h2><a href="/blog/tags" class="link-secondary">Tags</a></h2>
   </div>
 
   {

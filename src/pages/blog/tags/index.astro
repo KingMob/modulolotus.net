@@ -1,0 +1,103 @@
+---
+import BaseLayout from "@layouts/BaseLayout.astro";
+import { getCollection } from "astro:content";
+
+// Get all blog posts
+const allPosts = await getCollection("blog");
+
+// Generate a histogram of tag counts and track the most recent publication date for each tag
+const tagCounts: Record<string, number> = {};
+const tagLatestDate: Record<string, Date> = {};
+
+allPosts.forEach((post) => {
+  const pubDate = new Date(post.data.pubDate);
+  
+  (post.data.tags || []).forEach((tag) => {
+    // Update count
+    tagCounts[tag] = (tagCounts[tag] || 0) + 1;
+    
+    // Update latest date if this post's date is more recent
+    if (!tagLatestDate[tag] || pubDate > tagLatestDate[tag]) {
+      tagLatestDate[tag] = pubDate;
+    }
+  });
+});
+
+// Sort tags by count (descending), then by latest publication date (descending)
+const tags = Object.keys(tagCounts)
+  .sort((tagA, tagB) => {
+    // First sort by count
+    const countDiff = tagCounts[tagB] - tagCounts[tagA];
+    if (countDiff !== 0) return countDiff;
+    
+    // If counts are equal, sort by latest publication date
+    return tagLatestDate[tagB].getTime() - tagLatestDate[tagA].getTime();
+  });
+
+// Calculate logarithmic scale for tag sizes
+// Find min and max counts to establish the range
+const counts = Object.values(tagCounts);
+const minCount = Math.min(...counts);
+const maxCount = Math.max(...counts);
+
+// Function to calculate the size class based on tag count
+function getTagSizeClasses(count: number) {
+  // Use logarithmic scale to determine the size
+  // Map to a range from 0 to 4 (for 5 different size levels)
+  const minLog = Math.log(minCount || 1);
+  const maxLog = Math.log(maxCount);
+  const logRange = maxLog - minLog;
+  
+  // Calculate normalized position in the logarithmic scale (0 to 4)
+  const normalizedSize = logRange > 0 
+    ? Math.floor(((Math.log(count) - minLog) / logRange) * 4) 
+    : 0;
+  
+  // Define size classes for each property based on the normalized size
+  const fontSizes = ["text-xs", "text-sm", "text-base", "text-lg", "text-xl"];
+  const heights = ["h-6", "h-7", "h-8", "h-9", "h-10"];
+  const lineHeights = ["leading-tight", "leading-snug", "leading-normal", "leading-relaxed", "leading-loose"];
+  const paddingX = ["px-2", "px-2.5", "px-3", "px-3.5", "px-4"];
+  
+  return {
+    fontSize: fontSizes[normalizedSize],
+    height: heights[normalizedSize],
+    lineHeight: lineHeights[normalizedSize],
+    padding: paddingX[normalizedSize],
+  };
+}
+
+const pageTitle = "Tags";
+const sideBarActiveItemID = "blog";
+---
+
+<BaseLayout title={pageTitle} sideBarActiveItemID={sideBarActiveItemID}>
+  <div class="mb-5">
+    <div class="text-3xl w-full font-bold">{pageTitle}</div>
+  </div>
+  
+  <div class="tags">
+    {tags.map((tag) => {
+      const sizeClasses = getTagSizeClasses(tagCounts[tag]);
+      return (
+        <a 
+          class={`badge badge-outline badge-secondary m-2 ${sizeClasses.fontSize} ${sizeClasses.height} ${sizeClasses.lineHeight} ${sizeClasses.padding}`} 
+          href={`/blog/tags/${tag}/`}
+          title={`${tag} (${tagCounts[tag]} posts)`}
+        >
+          {tag}
+        </a>
+      );
+    })}
+  </div>
+</BaseLayout>
+
+<style>  
+  .tags {
+    display: flex;
+    flex-wrap: wrap;
+    margin: 0 auto;
+    /* center the tags vertically in the flex row */
+    align-items: center;
+  }
+</style>
