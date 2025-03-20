@@ -10,9 +10,10 @@ const { title, description, pubDate, updatedDate, heroImage, badge, tags = [] } 
 dayjs.extend(localizedFormat);
 const displayDate = dayjs(pubDate).format("YYYY-MM-DD")
 import { Image } from "astro:assets";
+const sideBarActiveItemID = 'blog';
 ---
 
-<BaseLayout title={title} description={description} image={heroImage}, ogType="article">
+<BaseLayout title={title} description={description} image={heroImage}, ogType="article" sideBarActiveItemID={sideBarActiveItemID}>
   <main class="md:flex md:justify-center">
     <article class="prose prose-lg max-w-[750px] prose-img:mx-auto">
       {heroImage && <Image width={750} height={422} format="webp" src={heroImage} alt={title} class="w-full mb-6" />}
@@ -23,7 +24,7 @@ import { Image } from "astro:assets";
       {
         tags &&
           tags.map((tag) => (
-            <a href={`/blog/tag/${tag}`} class="badge badge-outline ml-2 no-underline">
+            <a href={`/blog/tags/${tag}`} class="badge badge-outline ml-2 no-underline">
               {tag}
             </a>
           ))
