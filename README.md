@@ -30,7 +30,7 @@ pnpm run dev
 
 ## Project Structure
 
-```php
+```
 ├── src/
 │   ├── components/
 │   │   ├── cv/
