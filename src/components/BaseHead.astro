@@ -3,6 +3,8 @@
 // all pages through the use of the <BaseHead /> component.
 import "../styles/global.css";
 
+import PostHog from '../components/posthog.astro'
+
 export interface Props {
 	title: string;
 	description: string;
@@ -48,6 +50,7 @@ const {
 <meta property="twitter:description" content={description} />
 <meta property="twitter:image" content={new URL(image, Astro.url)} />
 
+<PostHog />
 
 <script is:inline>
 	function getTheme(document) {
