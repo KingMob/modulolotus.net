@@ -11,9 +11,10 @@ export async function GET(context) {
     stylesheet: "/rss/styles.xsl",
     items: blog.map((post) => ({
       title: post.data.title,
-      pubDate: post.data.pubDate,
       description: post.data.description,
+      pubDate: post.data.pubDate,
       link: `/blog/${post.id}/`,
+      guid: `/blog/${post.id}/`
     })),
   });
 }
