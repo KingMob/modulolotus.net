@@ -8,6 +8,10 @@ run = "pnpm run build"
 
 [tasks."dev"]
 description = "Run the development server and watch for changes"
+run = "pnpm run dev"
+
+[tasks."preview"]
+description = "Run the local Wrangler server to see how CloudFlare will display it"
 depends = ["build"]
 run = "pnpm exec wrangler dev"
 
