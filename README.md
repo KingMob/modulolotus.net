@@ -8,6 +8,8 @@ jj bookmark move -t @- master
 jj git push
 ```
 
+To see CI build, visit [Cloudflare](https://dash.cloudflare.com/edd3eb6f728b16950c875c8569eeb5d6/pages/view/modulolotus-net)
+
 ## Installation
 
 Run the following command in your terminal

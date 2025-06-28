@@ -1,0 +1,14 @@
+# AIDEV-NOTE: Redirects for old pre-Astro blog posts
+# AIDEV-NOTE: Using wildcards to handle both trailing slash and non-trailing slash cases
+# AIDEV-NOTE: Never add new blog posts here, this is strictly to maintain links to old pre-Astro posts
+
+/posts/2014-06-08-setting-up-rails* /blog/2014-06-08-setting-up-rails 301
+/posts/2014-07-11-premature-optimization* /blog/2014-07-11-premature-optimization 301
+/posts/2017-03-28-setting-up-algo* /blog/2017-03-28-setting-up-algo 301
+/posts/2017-05-17-thoughts-on-cryptopals-1* /blog/2017-05-17-thoughts-on-cryptopals-1 301
+/posts/2018-05-31-clojure-trie-performance* /blog/2018-05-31-clojure-trie-performance 301
+/posts/2019-05-03-my-fav-idm* /blog/2019-05-03-my-fav-idm 301
+/posts/2022-06-22-tidd* /blog/2022-06-22-tidd 301
+/posts/2023-03-17-undertale-exapunks* /blog/2023-03-17-undertale-exapunks 301
+/posts/2023-06-20-aleph-http2-changes* /blog/2023-06-20-aleph-http2-changes 301
+/posts/2025-03-04-test-impact-analysis* /blog/2025-03-04-test-impact-analysis 301 

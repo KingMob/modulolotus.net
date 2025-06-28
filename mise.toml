@@ -1,7 +1,17 @@
 [tools]
 node = "22"
-pnpm = "latest"
+pnpm = "10"
 
-[tasks."dev:run"]
+[tasks."build"]
+description = "Build the project"
+run = "pnpm run build"
+
+[tasks."dev"]
 description = "Run the development server and watch for changes"
-run = "pnpm run dev"
+depends = ["build"]
+run = "pnpm exec wrangler dev"
+
+[tasks."deploy"]
+description = "Deploy the project"
+depends = ["build"]
+run = "pnpm exec wrangler deploy"
