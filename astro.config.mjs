@@ -12,6 +12,5 @@ export default defineConfig({
     "/posts/[...slug]": "/blog/[...slug]"
   },
   experimental: {
-    svg: true
   }
 });
