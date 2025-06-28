@@ -6,14 +6,14 @@ tags:
   - nix-darwin
   - homebrew
   - mac
-description: "I gave up on nix-darwin, and reverted back to Homebrew"
+description: "I gave up on nix-darwin, and reverted back to Homebrew."
 ---
 
 ## Nix
 
 I started using nix last year when consulting for MIT. The lab had the perennial Python packaging problem of distributing their work to others, and used nix to solve it.
 
-For those who aren't familiar, nix builds a hashed tree of every input to building a program. It knows exactly what versions of everything to use, and neatly avoids almost every versioning problem ever. 
+For those who aren't familiar, nix builds a hashed tree of every input to building a program. It knows exactly what versions of everything to use, and neatly avoids almost every version resolution problem ever. 
 
 I'd heard of nix but never tried it. I got set up with nix-darwin, and ran immediately into issues of poor and outdated docs, and a community kind of split on whether to recommend flakes yet. 
 

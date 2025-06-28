@@ -1,7 +1,7 @@
 ---
 layout: "../layouts/PageLayout.astro"
 title: "Now"
-pubDate: "2025-04-29"
+pubDate: "2025-06-28"
 sideBarActiveItemID: "now"
 ---
 
@@ -11,16 +11,14 @@ This is a [now page](https://nownownow.com/about).
 
 ## Where I'm at
 
-Chiang Mai, Thailand. Songkran was a blast. It's started raining again. I got caught in my first thunderstorm last night.
+Chiang Mai, Thailand. It's been nicely overcast lately. Honestly, sometimes you just get sick of the sun in the tropics.
 
 ## What I'm doing now
 
-I will be taking over as co-owner of [Swarmify](https://swarmify.com), the startup I was CTO for many years ago.
+I am taking over as co-owner of [Swarmify](https://swarmify.com), the startup I was CTO for many years ago. I'm modernizing the codebase, addressing bug reports, etc. Just working a lot.
 
-Adding bind support to the OSH shell for Oils. Adding readline environment variable support.
+Bind support to osh was added, but to get Warp working with it, I still need to get some history and shopt flags working. Unfortunately, I'm working weekends more.
 
 ## For fun
 
-D&D: I'm a level 6 Blood Hunter in a Curse of Strahd campaign. 
-
-Currently, we're in Vallaki. Our drow monk went off on his own to engage the hag Morgantha. He came back with eight dream pies made from children, and tried to dispose of them on the roof. Unfortunately, a bunch of preteen were-ravens ate them, started tripping, and it turns out their the inn-keepers' children. We're all hoping to quietly disappear in the morning without them knowing. 😬
+D&D is on hiatus while the DM is on summer vacation. Right now, I'm reading Vandermeer's latest Southern Reach book, Absolution. The wife and I are binging Andor; we just finished, so up next is Rogue One, follwoed by the original Star Wars.
