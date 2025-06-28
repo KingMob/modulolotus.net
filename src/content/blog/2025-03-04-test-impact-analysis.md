@@ -1,5 +1,5 @@
 ---
-title: "You Should Test Less - Skip Irrelevant Tests With Impact Analysis"
+title: "You should test less - skip irrelevant tests with impact analysis"
 pubDate: 2025-03-04
 tags: 
   - testing

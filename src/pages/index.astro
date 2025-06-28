@@ -9,7 +9,7 @@ const posts = (
   })
 ).sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf());
 
-const last_posts = posts.slice(0, 3);
+const last_posts = posts.slice(0, 10);
 ---
 
 <BaseLayout sideBarActiveItemID="home">
@@ -47,4 +47,9 @@ const last_posts = posts.slice(0, 3);
       </>
     ))
   }
+  <div class="w-full flex justify-center mt-8">
+    <a href="/blog" class="link link-primary text-lg font-semibold">
+      See all blog posts
+    </a>
+  </div>
 </BaseLayout>
