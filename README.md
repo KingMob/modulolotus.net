@@ -2,13 +2,26 @@
 
 ## Deployment
 
+### Test Site (automatic)
+
+Pushing to `master` automatically deploys to the test site:
+
 ```bash
-jj commit -m "SOME LATEST CHANGE"
-jj bookmark move -t @- master
+jj bookmark set master -r @-
 jj git push
 ```
 
-To see CI build, visit [Cloudflare](https://dash.cloudflare.com/edd3eb6f728b16950c875c8569eeb5d6/pages/view/modulolotus-net)
+- **Test URL**: https://modulolotus-net.pages.dev/
+- **Build status**: [Cloudflare Dashboard](https://dash.cloudflare.com/edd3eb6f728b16950c875c8569eeb5d6/pages/view/modulolotus-net)
+
+### Production (manual)
+
+Production deployment requires wrangler:
+
+```bash
+pnpm build
+pnpm wrangler pages deploy dist
+```
 
 ## Installation
 
