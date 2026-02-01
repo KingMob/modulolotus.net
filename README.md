@@ -20,7 +20,7 @@ Production deployment requires wrangler:
 
 ```bash
 pnpm build
-pnpm wrangler pages deploy dist
+pnpm wrangler pages deploy dist --project-name modulolotus-net-pages
 ```
 
 ## Installation
