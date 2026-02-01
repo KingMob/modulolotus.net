@@ -53,26 +53,44 @@ const {
 <PostHog />
 
 <script is:inline>
-	function getTheme(document) {
-		return localStorage.getItem("theme") || 
-			(window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
-	}
+	(function() {
+		var mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
 
-	function setTheme(document) {
-		const theme = getTheme(document);
-		document.documentElement.setAttribute("data-theme", theme);
-		// console.log("Set theme to " + theme + 
-		// 	(localStorage.getItem("theme") ? " from localStorage" : " from prefers-color-scheme"));
-	}
+		function getStoredPreference() {
+			return localStorage.getItem("theme"); // null means "system"
+		}
 
-	setTheme(document);
+		function getEffectiveTheme() {
+			var stored = getStoredPreference();
+			if (stored === "light" || stored === "dark") {
+				return stored;
+			}
+			// System mode: follow OS preference
+			return mediaQuery.matches ? "dark" : "light";
+		}
 
-	document.addEventListener("astro:before-swap", (event) => {
-		setTheme(event.newDocument);
-	});
-</script>
+		function applyTheme(doc) {
+			doc.documentElement.setAttribute("data-theme", getEffectiveTheme());
+		}
 
-<script>
-	import { themeChange } from "theme-change";
-	themeChange();
+		// Apply theme immediately to prevent flash
+		applyTheme(document);
+
+		// Listen for OS preference changes (only affects "system" mode)
+		mediaQuery.addEventListener("change", function() {
+			if (!getStoredPreference()) {
+				applyTheme(document);
+			}
+		});
+
+		// Listen for preference changes from the toggle
+		window.addEventListener("theme-preference-changed", function() {
+			applyTheme(document);
+		});
+
+		// Handle Astro view transitions
+		document.addEventListener("astro:before-swap", function(event) {
+			applyTheme(event.newDocument);
+		});
+	})();
 </script>

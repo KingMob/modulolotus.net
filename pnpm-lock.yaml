@@ -38,9 +38,6 @@ importers:
       tailwindcss:
         specifier: ^4.1.18
         version: 4.1.18
-      theme-change:
-        specifier: ^2.5.0
-        version: 2.5.0
     devDependencies:
       '@playwright/test':
         specifier: ^1.58.1
@@ -2472,9 +2469,6 @@ packages:
   tapable@2.3.0:
     resolution: {integrity: sha512-g9ljZiwki/LfxmQADO3dEY1CbpmXT5Hm2fJ+QaGKwSXUylMybePR7/67YW7jOrrvjEgL1Fmz5kzyAjWVWLlucg==}
     engines: {node: '>=6'}
-
-  theme-change@2.5.0:
-    resolution: {integrity: sha512-B/UdsgdHAGhSKHTAQnxg/etN0RaMDpehuJmZIjLMDVJ6DGIliRHGD6pODi1CXLQAN9GV0GSyB3G6yCuK05PkPQ==}
 
   tiny-inflate@1.0.3:
     resolution: {integrity: sha512-pkY1fj1cKHb2seWDy0B16HeWyczlJA9/WW3u3c4z/NiWDsO3DOU5D7nhTLE9CF0yXv/QZFY7sEJmj24dK+Rrqw==}
@@ -5473,8 +5467,6 @@ snapshots:
   tailwindcss@4.1.18: {}
 
   tapable@2.3.0: {}
-
-  theme-change@2.5.0: {}
 
   tiny-inflate@1.0.3: {}
 
