@@ -16,11 +16,10 @@ jj git push
 
 ### Production (manual)
 
-Production deployment requires wrangler:
+Production deployment to modulolotus.net:
 
 ```bash
-pnpm build
-pnpm wrangler pages deploy dist --project-name modulolotus-net-pages
+mise run deploy
 ```
 
 ## Installation
