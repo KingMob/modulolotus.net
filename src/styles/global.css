@@ -1,23 +1,77 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
-/* @plugin "daisyui" {
-  themes: "modulo-lotus-light", "modulo-lotus-dark"  --default --prefersdark;
-} */
+@plugin "@tailwindcss/typography";
+@plugin "daisyui" {
+  themes:
+    light --default,
+    dark --prefersdark;
+}
+
+@source "../**/*.{astro,html,js,jsx,md,mdx,svelte,ts,tsx,vue}";
+
+/* Custom purple theme overrides - using original hex values converted to oklch */
+/* Original: primary #8A2BE2, secondary #6a0dad, accent #9370DB, neutral #4B0082 */
+@layer base {
+  [data-theme="light"] {
+    --color-primary: oklch(50% 0.27 303) !important;
+    --color-primary-content: oklch(100% 0 0) !important;
+    --color-secondary: oklch(40% 0.24 303) !important;
+    --color-secondary-content: oklch(100% 0 0) !important;
+    --color-accent: oklch(62% 0.17 300) !important;
+    --color-accent-content: oklch(100% 0 0) !important;
+    --color-neutral: oklch(30% 0.22 295) !important;
+    --color-neutral-content: oklch(100% 0 0) !important;
+  }
+
+  /* Original dark: primary #9d4edd, secondary #7b2cbf, accent #c77dff, neutral #5a189a */
+  /* base-100 #1a1625, base-200 #15121f, base-300 #100d19 */
+  [data-theme="dark"] {
+    --color-base-100: oklch(18% 0.035 295) !important;
+    --color-base-200: oklch(15% 0.03 295) !important;
+    --color-base-300: oklch(12% 0.025 295) !important;
+    --color-base-content: oklch(85% 0.01 290) !important;
+    --color-primary: oklch(55% 0.24 303) !important;
+    --color-primary-content: oklch(95% 0.02 303) !important;
+    --color-secondary: oklch(48% 0.22 303) !important;
+    --color-secondary-content: oklch(95% 0.02 303) !important;
+    --color-accent: oklch(72% 0.2 303) !important;
+    --color-accent-content: oklch(95% 0 0) !important;
+    --color-neutral: oklch(35% 0.2 295) !important;
+    --color-neutral-content: oklch(95% 0 0) !important;
+  }
+}
 
 @font-face {
-    font-family: 'Montserrat';
-    src: url('/fonts/Montserrat-SemiBold.ttf') format('truetype');
-    font-weight: 600;
-    font-style: normal;
-    font-display: swap;
+  font-family: "Montserrat";
+  src: url("/fonts/Montserrat-SemiBold.ttf") format("truetype");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
 }
 
 :root {
-    --heading-font-family: 'Montserrat', sans-serif;
+  --heading-font-family: "Montserrat", sans-serif;
 }
 
-h1, h2, h3 {
-    font-family: var(--heading-font-family);
+h1,
+h2,
+h3 {
+  font-family: var(--heading-font-family);
+}
+
+/* daisyUI v5 menu styling overrides - restore pre-v5 menu appearance */
+.menu li {
+  width: 100%;
+}
+
+.menu li > a,
+.menu li > span,
+.menu li > button {
+  border-radius: 0.5rem;
+}
+
+.menu a.menu-active,
+.menu li.menu-active > a {
+  background-color: var(--color-neutral);
+  color: var(--color-neutral-content);
 }

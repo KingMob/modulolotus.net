@@ -1,6 +1,6 @@
 ---
 const { sideBarActiveItemID } = Astro.props;
-const activeClass = "active";
+const activeClass = "menu-active";
 ---
 
 <style>
@@ -9,7 +9,7 @@ const activeClass = "active";
     }
 </style>
     
-<ul class="menu grow shrink menu-md overflow-y-auto">
+<ul class="menu w-full grow shrink menu-md overflow-y-auto">
     <li><a class:list={["sidebar-menu-item py-2 text-base", { [activeClass]: sideBarActiveItemID === "home" }]} id="home" href="/">HOME</a></li>
     <li><a class:list={["sidebar-menu-item py-2 text-base", { [activeClass]: sideBarActiveItemID === "blog" }]} id="blog" href="/blog/">BLOG</a></li>
     <li><a class:list={["sidebar-menu-item py-2 text-base", { [activeClass]: sideBarActiveItemID === "now" }]} id="now" href="/now">NOW</a></li>
