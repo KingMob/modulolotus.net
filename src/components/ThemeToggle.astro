@@ -1,6 +1,6 @@
-<div class="join" transition:persist id="theme-toggle">
+<div class="join mr-2" transition:persist id="theme-toggle">
   <!-- Light -->
-  <button class="btn btn-sm join-item" data-theme-value="light" aria-label="Light theme">
+  <button class="btn btn-sm btn-soft join-item" data-theme-value="light" aria-label="Light theme">
     <svg
       xmlns="http://www.w3.org/2000/svg"
       width="18"
@@ -16,7 +16,7 @@
     </svg>
   </button>
   <!-- System -->
-  <button class="btn btn-sm join-item" data-theme-value="system" aria-label="System theme">
+  <button class="btn btn-sm btn-soft join-item" data-theme-value="system" aria-label="System theme">
     <svg
       xmlns="http://www.w3.org/2000/svg"
       width="18"
@@ -33,7 +33,7 @@
     </svg>
   </button>
   <!-- Dark -->
-  <button class="btn btn-sm join-item" data-theme-value="dark" aria-label="Dark theme">
+  <button class="btn btn-sm btn-soft join-item" data-theme-value="dark" aria-label="Dark theme">
     <svg
       xmlns="http://www.w3.org/2000/svg"
       width="18"
@@ -60,9 +60,11 @@
     buttons.forEach((btn) => {
       const value = btn.getAttribute('data-theme-value');
       if (value === preference) {
-        btn.classList.add('btn-active');
+        btn.classList.remove('btn-soft');
+        btn.classList.add('btn-secondary');
       } else {
-        btn.classList.remove('btn-active');
+        btn.classList.remove('btn-secondary');
+        btn.classList.add('btn-soft');
       }
     });
   }
