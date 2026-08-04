@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Lilah Silverlake — Combat Cheat Sheet</title>
+<style>
+:root {
+  color-scheme: light dark;
+  --bg: #ffffff;
+  --fg: #1a1a1a;
+  --muted: #444444;
+  --faint: #555555;
+  --border-muted: #888888;
+  --chip-border: #999999;
+  --badge-announce-bg: #fde3cf;
+  --badge-announce-fg: #7a3300;
+  --badge-announce-border: #d98033;
+  --badge-decision-bg: #dbe9fb;
+  --badge-decision-fg: #17406b;
+  --badge-decision-border: #6f9fd8;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1b1a17;
+    --fg: #e9e5da;
+    --muted: #b7b2a6;
+    --faint: #9a958a;
+    --border-muted: #6f6a5e;
+    --chip-border: #6f6a5e;
+    --badge-announce-bg: #4a2c12;
+    --badge-announce-fg: #ffd3a0;
+    --badge-announce-border: #c97a2e;
+    --badge-decision-bg: #1c2f47;
+    --badge-decision-fg: #bcdcff;
+    --badge-decision-border: #5b8fc7;
+  }
+}
+* { box-sizing: border-box; }
+
+/* Mobile-first: base rules below target a narrow phone screen, since the
+   sheet is mostly read at the table on a phone. The min-width query further
+   down widens the layout back out for tablets and desktops; @media print
+   pins the compact desktop-equivalent sizing regardless of viewport, and
+   forces the light palette regardless of system dark mode. */
+body {
+  font-family: "Georgia", "Times New Roman", serif;
+  color: var(--fg);
+  background: var(--bg);
+  margin: 0;
+  padding: 1em 0.75em;
+  line-height: 1.4;
+}
+h1 { margin-bottom: 0.1em; font-size: 1.4em; }
+.subhead { margin-top: 0; color: var(--muted); font-style: italic; }
+h2 {
+  font-size: 1.05em;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-bottom: 2px solid var(--fg);
+  margin-top: 1em;
+  margin-bottom: 0.4em;
+  padding-bottom: 0.15em;
+}
+.phase { break-inside: avoid-page; }
+.rule-card {
+  margin-bottom: 0.5em;
+  padding: 0.3em 0.5em;
+  border-left: 3px solid var(--border-muted);
+  break-inside: avoid;
+}
+.rule-title { font-weight: bold; }
+.rule-text { font-size: 0.95em; }
+.badge {
+  display: inline-block;
+  font-size: 0.82em;
+  font-weight: bold;
+  margin-top: 0.2em;
+  padding: 0.1em 0.4em;
+  border-radius: 3px;
+}
+.badge.announce { background: var(--badge-announce-bg); color: var(--badge-announce-fg); border: 1px solid var(--badge-announce-border); }
+.badge.decision { background: var(--badge-decision-bg); color: var(--badge-decision-fg); border: 1px solid var(--badge-decision-border); }
+.glance { font-size: 0.95em; margin: 0.3em 0 0.3em 1.2em; padding: 0; }
+.glance-phase { font-weight: bold; margin-top: 0.4em; }
+.glance ul { margin: 0.15em 0 0.4em 1.1em; padding: 0; font-weight: normal; }
+.glance ul li { margin: 0.12em 0; }
+.res-list { margin-top: 0.25em; }
+.res-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.6em;
+  font-size: 0.95em;
+  padding: 0.08em 0;
+}
+.res-name { flex: 1; }
+.res-boxes input[type="checkbox"] {
+  /* Sized as a tap target, not a desktop click target, at this width. */
+  width: 1.3em;
+  height: 1.3em;
+  margin: 0 0.18em;
+  accent-color: var(--badge-decision-fg);
+}
+.res-pool input[type="text"] {
+  width: 2.6em;
+  text-align: center;
+  font: inherit;
+  color: var(--fg);
+  background: var(--bg);
+  border: 1px solid var(--border-muted);
+  border-radius: 3px;
+  padding: 0 0.15em;
+}
+.res-max { color: var(--muted); margin-left: 0.25em; }
+.always-available {
+  margin-top: 0.3em;
+  font-size: 0.8em;
+  color: var(--faint);
+}
+.always-label { font-weight: bold; margin-right: 0.2em; }
+.always-available .chip {
+  border-bottom: 1px dotted var(--chip-border);
+  cursor: help;
+}
+
+/* Tablet and up: the roomier measure and compact controls the sheet used
+   to have unconditionally. */
+@media (min-width: 40em) {
+  body { max-width: 47em; margin: 1.5em auto; padding: 0 1em; line-height: 1.35; }
+  h1 { font-size: 1.6em; }
+  h2 { font-size: 1.1em; margin-top: 1.1em; }
+  .rule-card { padding: 0.3em 0.6em; }
+  .res-boxes input[type="checkbox"] { width: 0.95em; height: 0.95em; margin: 0 0.12em; }
+}
+
+@media print {
+  /* Printed sheets always use the compact desktop-equivalent sizing,
+     independent of whatever viewport width the print pipeline reports, and
+     always render with the light palette regardless of system dark mode
+     (ink on paper, not a screen). This block must come after the dark-mode
+     query above so it wins the cascade when both apply. */
+  :root {
+    color-scheme: light;
+    --bg: #ffffff;
+    --fg: #1a1a1a;
+    --muted: #444444;
+    --faint: #555555;
+    --border-muted: #888888;
+    --chip-border: #999999;
+    --badge-announce-bg: #fde3cf;
+    --badge-announce-fg: #7a3300;
+    --badge-announce-border: #d98033;
+    --badge-decision-bg: #dbe9fb;
+    --badge-decision-fg: #17406b;
+    --badge-decision-border: #6f9fd8;
+  }
+  body { margin: 0; max-width: none; padding: 0 1em; line-height: 1.35; }
+  h1 { font-size: 1.6em; }
+  h2 { font-size: 1.1em; margin-top: 1.1em; }
+  .rule-card { padding: 0.3em 0.6em; }
+  .res-boxes input[type="checkbox"] { width: 0.95em; height: 0.95em; margin: 0 0.12em; }
+  .res-pool input[type="text"] { border: 1px solid var(--fg); }
+  a { color: inherit; text-decoration: none; }
+}
+</style>
+</head>
+<body>
+<h1>Lilah Silverlake</h1><p class="subhead">Rogue 6 (Inquisitive (XGtE)) — Human</p>
+<section class="phase">
+<h2>At a Glance</h2>
+<ol class="glance">
+<li class="glance-phase">Start of Your Turn<ul>
+<li>Frightened? Roll 1d20 — on 10+, you&#x27;re no longer Frightened (Indomitable Heart).</li>
+</ul></li>
+<li class="glance-phase">Your Turn: Bonus Action<ul>
+<li>Not moving this turn? Get Advantage on your next attack — your Speed becomes 0 (Steady Aim).</li>
+<li>No Advantage and no ally next to the target? Roll Insight against their Deception — unlock Sneak Attack against it for 1 minute if you win (Insightful Fighting).</li>
+<li>Dash, Disengage, or Hide (Cunning Action).</li>
+<li>Enemy hiding? Make a Perception check to spot it (Eye for Detail).</li>
+</ul></li>
+<li class="glance-phase">Your Turn: Action<ul>
+<li>Have Advantage, or an ally within 5 ft of the target? Add 3d6 Sneak Attack damage to ONE attack this turn (Sneak Attack).</li>
+<li>Attacking? The pistol shoots TWICE per Attack action, crits on 19–20, and ignores close-range Disadvantage (Ilseur&#x27;s Hair Trigger / Acuity).</li>
+<li>Dealing Sneak Attack damage? You may trade 1d6 of it for an effect: Poison (DC 13 Con), Trip (Prone), or Withdraw (Cunning Strike).</li>
+<li>Did the pistol hit? Vex: Get Advantage on your next attack vs that target.</li>
+<li>Bloodied (≤31 HP) and landed a hit? You may declare max damage — 1/Long Rest (Defiant Strike).</li>
+<li>Need 10 temp HP? Spend the Tadpole&#x27;s charge — returns on a Short Rest (Shield of Thralls).</li>
+</ul></li>
+<li class="glance-phase">Off-turn<ul>
+<li>Hit by an attack from an attacker you can see? Reaction: HALVE the damage (Uncanny Dodge).</li>
+</ul></li>
+<li class="glance-phase">Anytime<ul>
+<li>Bad d20 incoming? Spend a Luck Point (3/LR): get Advantage on your own D20 Test, or impose Disadvantage on an attack against you (Lucky).</li>
+</ul></li>
+</ol>
+</section>
+<section class="phase"><h2>Before Combat</h2><div class="rule-card"><div class="rule-title">Resource checklist</div><div class="rule-text">Luck Points, Defiant Strike, and Heroic Inspiration return on a Long Rest; Shield of Thralls returns on a Short or Long Rest.</div><div class="res-list"><div class="res-row"><span class="res-name">Luck Points (Lucky)</span><span class="res-boxes"><input type="checkbox"><input type="checkbox"><input type="checkbox"></span></div><div class="res-row"><span class="res-name">Defiant Strike</span><span class="res-boxes"><input type="checkbox"></span></div><div class="res-row"><span class="res-name">Heroic Inspiration (Resourceful)</span><span class="res-boxes"><input type="checkbox"></span></div><div class="res-row"><span class="res-name">Shield of Thralls (Tadpole, Short Rest)</span><span class="res-boxes"><input type="checkbox"></span></div></div></div></section>
+<section class="phase"><h2>Start of Your Turn</h2><div class="rule-card"><div class="rule-title">Indomitable Heart</div><div class="rule-text">Frightened? Roll a d20 — on 10+, the condition ends.</div></div></section>
+<section class="phase"><h2>Your Turn: Bonus Action</h2><div class="rule-card"><div class="rule-title">Steady Aim</div><div class="rule-text">Grant yourself Advantage on your next attack roll this turn. Your speed becomes 0 until your next turn.</div><div class="badge announce">📢 ANNOUNCE: You will not move this turn (before or after the attack).</div><div class="badge decision">🔀 DECIDE: Worth it only if you don&#x27;t need to move or reposition this turn.</div></div>
+<div class="rule-card"><div class="rule-title">Insightful Fighting</div><div class="rule-text">Your Wisdom (Insight) vs the target&#x27;s Charisma (Deception). Win, and for 1 minute you can Sneak Attack that creature without Advantage or an adjacent ally (still not while you have Disadvantage). Lasts until you use it on someone else.</div><div class="badge decision">🔀 DECIDE: Your Sneak Attack unlock when positioning fails — you have Insight Expertise, so you usually win.</div></div>
+<div class="rule-card"><div class="rule-title">Cunning Action</div><div class="rule-text">Take the Dash, Disengage, or Hide action as a bonus action instead of your action.</div><div class="badge decision">🔀 DECIDE: Disengage to leave melee safely; Dash to close distance; Hide to set up Sneak Attack.</div></div>
+<div class="rule-card"><div class="rule-title">Eye for Detail</div><div class="rule-text">Make a Wisdom (Perception) check to spot a hidden creature or object, or an Intelligence (Investigation) check to uncover a clue.</div></div></section>
+<section class="phase"><h2>Your Turn: Action</h2><div class="rule-card"><div class="rule-title">Sneak Attack</div><div class="rule-text">Once per turn, add 3d6 extra damage to one attack with a Finesse or ranged weapon when you have Advantage, or when an ally is within 5 feet of the target and you don&#x27;t have Disadvantage.</div><div class="badge decision">🔀 DECIDE: Pick the attack most likely to hit before applying it — it only triggers once per turn.</div></div>
+<div class="rule-card"><div class="rule-title">Ilseur&#x27;s Prized Pistol</div><div class="rule-text">Attack action: shoot TWICE (Ilseur&#x27;s Hair Trigger). +2 attack &amp; damage, crit on 19–20, no Disadvantage for shooting within 5 ft of an enemy, no reloading. First shot hits? Vex gives the second shot Advantage — put Sneak Attack on that one.</div><div class="badge decision">🔀 DECIDE: First shot hits → second shot has Advantage (Vex) → Sneak Attack rides the second shot.</div></div>
+<div class="rule-card"><div class="rule-title">Cunning Strike</div><div class="rule-text">When you deal Sneak Attack damage, you can forgo 1d6 of it to add one effect: Poison — target makes a DC 13 Con save or is Poisoned for 1 minute (you have a Poisoner&#x27;s Kit, required); Trip — Large or smaller target makes a DC 13 Dex save or falls Prone; Withdraw — after the attack, move half your Speed without provoking Opportunity Attacks.</div><div class="badge decision">🔀 DECIDE: Trip early in the round so allies get melee Advantage; Withdraw when you&#x27;re in someone&#x27;s face.</div></div>
+<div class="rule-card"><div class="rule-title">On hit — weapon mastery</div><div class="rule-text">Every attack with a mastery weapon has a mastery effect. Pistol → Vex: after a hit, your next attack against that target has Advantage (until end of your next turn).</div><div class="badge announce">📢 ANNOUNCE: Did the pistol hit? Say it: next attack on that target has Advantage.</div></div>
+<div class="rule-card"><div class="rule-title">On hit — Defiant Strike (1/LR)</div><div class="rule-text">While bloodied (≤31 HP), after a hit lands you may declare the damage roll is maximized. Best spent on a hit that&#x27;s carrying Sneak Attack dice.</div><div class="badge announce">📢 ANNOUNCE: Bloodied and the hit matters? Declare max damage now (1/Long Rest).</div></div>
+<div class="rule-card"><div class="rule-title">Shield of Thralls</div><div class="rule-text">Expend the Tadpole&#x27;s charge to conjure a psionic shield — you gain 10 Temporary Hit Points. The charge returns on a Short or Long Rest.</div></div><div class="always-available"><span class="always-label">Always available:</span> <span class="chip" title="Make a melee or ranged attack (or more than one, if you have Extra Attack).">Attack</span> &middot; <span class="chip" title="Gain extra movement equal to your Speed for this turn.">Dash</span> &middot; <span class="chip" title="Your movement doesn&#x27;t provoke Opportunity Attacks for the rest of the turn.">Disengage</span> &middot; <span class="chip" title="Until the start of your next turn, attack rolls against you have Disadvantage (if you can see the attacker) and you have Advantage on Dexterity saving throws.">Dodge</span> &middot; <span class="chip" title="Help an ally: give them Advantage on their next ability check for a task, or on their next attack roll against a creature within 5 feet of you.">Help</span> &middot; <span class="chip" title="Choose a trigger and an action (or Move) to take when it occurs before the start of your next turn; spending the reaction to do it is the &quot;Readied Action Trigger&quot; reminder in the Reaction section.">Ready</span> &middot; <span class="chip" title="Replace one of your attacks with an Unarmed Strike to Shove (push 5 feet or knock Prone) or Grapple (target&#x27;s Speed becomes 0) a creature no more than one size larger than you.">Shove / Grapple</span> &middot; <span class="chip" title="Use an object&#x27;s property or a feature tied to an object — e.g. drink a potion, light a torch, or swap weapons beyond your one free Interact (see &quot;Interact with an Object&quot;).">Utilize</span></div></section>
+
+<section class="phase"><h2>Off-turn</h2><div class="rule-card"><div class="rule-title">When you&#x27;re hit</div><div class="rule-text">Uncanny Dodge: when an attacker you can see hits you with an attack, use your reaction to halve the attack&#x27;s damage against you.</div><div class="badge announce">📢 ANNOUNCE: Say it the moment the damage is announced — before it&#x27;s applied.</div></div><div class="always-available"><span class="always-label">Always available:</span> <span class="chip" title="When a hostile creature you can see leaves your reach without Disengaging or being Teleported/moved by an effect, you can use your reaction to make one melee attack against it.">Opportunity Attack</span> &middot; <span class="chip" title="If you took the Ready action earlier this turn, this is when you spend your reaction to actually take the readied action, once its trigger occurs.">Readied Action Trigger</span></div></section>
+<section class="phase"><h2>Anytime</h2><div class="rule-card"><div class="rule-title">Luck Points</div><div class="rule-text">3 Luck Points per Long Rest. Spend 1 when you roll a D20 Test to give yourself Advantage, or when a creature attacks you to impose Disadvantage on its roll. Advantage from Lucky also unlocks Sneak Attack.</div></div><div class="always-available"><span class="always-label">Always available:</span> <span class="chip" title="Once per turn, freely interact with one object or feature of the environment — e.g. draw OR stow one weapon. This doesn&#x27;t use your action. Swapping weapons beyond this one free interaction requires the Utilize action instead.">Interact with an Object</span></div></section>
+</body>
+</html>
