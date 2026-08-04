@@ -2,7 +2,7 @@
 
 ## Deployment
 
-- **Test site**: Pushing to `master` auto-deploys to https://modulolotus-net.pages.dev/
+- **Test site**: Pushing to `main` auto-deploys to https://modulolotus-net.pages.dev/
 - **Production**: Requires manual deploy with `mise run deploy` (deploys to modulolotus.net)
 
 ## Tech Stack

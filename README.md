@@ -4,10 +4,10 @@
 
 ### Test Site (automatic)
 
-Pushing to `master` automatically deploys to the test site:
+Pushing to `main` automatically deploys to the test site:
 
 ```bash
-jj bookmark set master -r @-
+jj bookmark set main -r @-
 jj git push
 ```
 
