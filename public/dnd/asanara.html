@@ -2,6 +2,8 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Combat cheat sheet for Asanara Mossbrook: turn-by-turn actions, resources, and rules reminders.">
 <title>Asanara Mossbrook — Combat Cheat Sheet</title>
 <style>
 :root {
@@ -95,21 +97,23 @@ h2 {
 }
 .res-name { flex: 1; }
 .res-boxes input[type="checkbox"] {
-  /* Sized as a tap target, not a desktop click target, at this width. */
-  width: 1.3em;
-  height: 1.3em;
-  margin: 0 0.18em;
+  /* 1.5em = 24px at the 16px base — the WCAG 2.5.8 / Lighthouse minimum
+     touch-target size, so each box is tappable without zooming. */
+  width: 1.5em;
+  height: 1.5em;
+  margin: 0 0.2em;
   accent-color: var(--badge-decision-fg);
 }
 .res-pool input[type="text"] {
   width: 2.6em;
+  min-height: 1.5em;
   text-align: center;
   font: inherit;
   color: var(--fg);
   background: var(--bg);
   border: 1px solid var(--border-muted);
   border-radius: 3px;
-  padding: 0 0.15em;
+  padding: 0.15em;
 }
 .res-max { color: var(--muted); margin-left: 0.25em; }
 .always-available {
@@ -165,6 +169,7 @@ h2 {
 </style>
 </head>
 <body>
+<main>
 <h1>Asanara Mossbrook</h1><p class="subhead">Paladin 6 (Oath of the Ancients) — Human</p>
 <section class="phase">
 <h2>At a Glance</h2>
@@ -197,7 +202,7 @@ h2 {
 </ol>
 </section>
 <section class="phase"><h2>Before Combat</h2><div class="rule-card"><div class="rule-title">Weapon Mastery (Long Rest)</div><div class="rule-text">You can reassign your 2 masteries when you finish a Long Rest. The Arms&#x27; curse means you only ever swing the Arms, so keep them on its forms. Current: Greatsword→Graze (damage on a miss), Greatclub→Push (shove 10 ft on a hit). Third option if plans change: Longbow→Slow.</div><div class="badge announce">📢 ANNOUNCE: Declare mastery reassignments when you finish a Long Rest.</div></div>
-<div class="rule-card"><div class="rule-title">Resource checklist</div><div class="rule-text">All of these come back on a Long Rest.</div><div class="res-list"><div class="res-row"><span class="res-name">Channel Divinity (1 returns on Short Rest)</span><span class="res-boxes"><input type="checkbox"><input type="checkbox"></span></div><div class="res-row"><span class="res-name">Free Divine Smite</span><span class="res-boxes"><input type="checkbox"></span></div><div class="res-row"><span class="res-name">Free Find Steed</span><span class="res-boxes"><input type="checkbox"></span></div><div class="res-row"><span class="res-name">Defiant Strike</span><span class="res-boxes"><input type="checkbox"></span></div><div class="res-row"><span class="res-name">Heroic Inspiration (Resourceful)</span><span class="res-boxes"><input type="checkbox"></span></div><div class="res-row"><span class="res-name">Lay on Hands pool (HP)</span><span class="res-pool"><input type="text" size="3" maxlength="3"><span class="res-max">/ 30</span></span></div><div class="res-row"><span class="res-name">1st-level spell slots</span><span class="res-boxes"><input type="checkbox"><input type="checkbox"><input type="checkbox"><input type="checkbox"></span></div><div class="res-row"><span class="res-name">2nd-level spell slots</span><span class="res-boxes"><input type="checkbox"><input type="checkbox"></span></div></div></div></section>
+<div class="rule-card"><div class="rule-title">Resource checklist</div><div class="rule-text">All of these come back on a Long Rest.</div><div class="res-list"><div class="res-row"><span class="res-name">Channel Divinity (1 returns on Short Rest)</span><span class="res-boxes"><input type="checkbox" aria-label="Channel Divinity (1 returns on Short Rest) use 1 of 2"><input type="checkbox" aria-label="Channel Divinity (1 returns on Short Rest) use 2 of 2"></span></div><div class="res-row"><span class="res-name">Free Divine Smite</span><span class="res-boxes"><input type="checkbox" aria-label="Free Divine Smite use 1 of 1"></span></div><div class="res-row"><span class="res-name">Free Find Steed</span><span class="res-boxes"><input type="checkbox" aria-label="Free Find Steed use 1 of 1"></span></div><div class="res-row"><span class="res-name">Defiant Strike</span><span class="res-boxes"><input type="checkbox" aria-label="Defiant Strike use 1 of 1"></span></div><div class="res-row"><span class="res-name">Heroic Inspiration (Resourceful)</span><span class="res-boxes"><input type="checkbox" aria-label="Heroic Inspiration (Resourceful) use 1 of 1"></span></div><div class="res-row"><span class="res-name">Lay on Hands pool (HP)</span><span class="res-pool"><input type="text" size="3" maxlength="3" aria-label="Lay on Hands pool (HP) remaining"><span class="res-max">/ 30</span></span></div><div class="res-row"><span class="res-name">1st-level spell slots</span><span class="res-boxes"><input type="checkbox" aria-label="1st-level spell slots use 1 of 4"><input type="checkbox" aria-label="1st-level spell slots use 2 of 4"><input type="checkbox" aria-label="1st-level spell slots use 3 of 4"><input type="checkbox" aria-label="1st-level spell slots use 4 of 4"></span></div><div class="res-row"><span class="res-name">2nd-level spell slots</span><span class="res-boxes"><input type="checkbox" aria-label="2nd-level spell slots use 1 of 2"><input type="checkbox" aria-label="2nd-level spell slots use 2 of 2"></span></div></div></div></section>
 <section class="phase"><h2>Start of Your Turn</h2><div class="rule-card"><div class="rule-title">Indomitable Heart</div><div class="rule-text">Frightened? Roll a d20 — on 10+, the condition ends.</div></div>
 <div class="rule-card"><div class="rule-title">Mounted? Announce your steed&#x27;s action</div><div class="rule-text">A controlled mount acts on your initiative and can ONLY Dash, Disengage, or Dodge. Pick one each round and say it out loud — its movement is how you get around.</div><div class="badge announce">📢 ANNOUNCE: Every round on a mount: Dash, Disengage, or Dodge?</div></div></section>
 <section class="phase"><h2>Your Turn: Action</h2><div class="rule-card"><div class="rule-title">On hit/miss — weapon mastery</div><div class="rule-text">Every attack with a mastery weapon has a mastery effect — most trigger on a hit, Graze on a miss. Apply the mastery effect every time.</div><div class="badge announce">📢 ANNOUNCE: Attack resolved? Apply the mastery effect — hit or miss.</div></div>
@@ -211,5 +216,6 @@ h2 {
 <div class="rule-card"><div class="rule-title">When healed</div><div class="rule-text">Remarkable Recovery: +2 extra HP whenever a spell, potion, or class feature heals you.</div></div>
 <div class="rule-card"><div class="rule-title">Ally support</div><div class="rule-text">Remind allies within 10 ft: +3 to their saves from your aura.</div></div><div class="always-available"><span class="always-label">Always available:</span> <span class="chip" title="When a hostile creature you can see leaves your reach without Disengaging or being Teleported/moved by an effect, you can use your reaction to make one melee attack against it.">Opportunity Attack</span> &middot; <span class="chip" title="If you took the Ready action earlier this turn, this is when you spend your reaction to actually take the readied action, once its trigger occurs.">Readied Action Trigger</span></div></section>
 <section class="phase"><h2>Anytime</h2><div class="always-available"><span class="always-label">Always available:</span> <span class="chip" title="Once per turn, freely interact with one object or feature of the environment — e.g. draw OR stow one weapon. This doesn&#x27;t use your action. Swapping weapons beyond this one free interaction requires the Utilize action instead.">Interact with an Object</span></div></section>
+</main>
 </body>
 </html>

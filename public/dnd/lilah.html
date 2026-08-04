@@ -2,6 +2,8 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Combat cheat sheet for Lilah Silverlake: turn-by-turn actions, resources, and rules reminders.">
 <title>Lilah Silverlake — Combat Cheat Sheet</title>
 <style>
 :root {
@@ -95,21 +97,23 @@ h2 {
 }
 .res-name { flex: 1; }
 .res-boxes input[type="checkbox"] {
-  /* Sized as a tap target, not a desktop click target, at this width. */
-  width: 1.3em;
-  height: 1.3em;
-  margin: 0 0.18em;
+  /* 1.5em = 24px at the 16px base — the WCAG 2.5.8 / Lighthouse minimum
+     touch-target size, so each box is tappable without zooming. */
+  width: 1.5em;
+  height: 1.5em;
+  margin: 0 0.2em;
   accent-color: var(--badge-decision-fg);
 }
 .res-pool input[type="text"] {
   width: 2.6em;
+  min-height: 1.5em;
   text-align: center;
   font: inherit;
   color: var(--fg);
   background: var(--bg);
   border: 1px solid var(--border-muted);
   border-radius: 3px;
-  padding: 0 0.15em;
+  padding: 0.15em;
 }
 .res-max { color: var(--muted); margin-left: 0.25em; }
 .always-available {
@@ -165,6 +169,7 @@ h2 {
 </style>
 </head>
 <body>
+<main>
 <h1>Lilah Silverlake</h1><p class="subhead">Rogue 6 (Inquisitive (XGtE)) — Human</p>
 <section class="phase">
 <h2>At a Glance</h2>
@@ -194,7 +199,7 @@ h2 {
 </ul></li>
 </ol>
 </section>
-<section class="phase"><h2>Before Combat</h2><div class="rule-card"><div class="rule-title">Resource checklist</div><div class="rule-text">Luck Points, Defiant Strike, and Heroic Inspiration return on a Long Rest; Shield of Thralls returns on a Short or Long Rest.</div><div class="res-list"><div class="res-row"><span class="res-name">Luck Points (Lucky)</span><span class="res-boxes"><input type="checkbox"><input type="checkbox"><input type="checkbox"></span></div><div class="res-row"><span class="res-name">Defiant Strike</span><span class="res-boxes"><input type="checkbox"></span></div><div class="res-row"><span class="res-name">Heroic Inspiration (Resourceful)</span><span class="res-boxes"><input type="checkbox"></span></div><div class="res-row"><span class="res-name">Shield of Thralls (Tadpole, Short Rest)</span><span class="res-boxes"><input type="checkbox"></span></div></div></div></section>
+<section class="phase"><h2>Before Combat</h2><div class="rule-card"><div class="rule-title">Resource checklist</div><div class="rule-text">Luck Points, Defiant Strike, and Heroic Inspiration return on a Long Rest; Shield of Thralls returns on a Short or Long Rest.</div><div class="res-list"><div class="res-row"><span class="res-name">Luck Points (Lucky)</span><span class="res-boxes"><input type="checkbox" aria-label="Luck Points (Lucky) use 1 of 3"><input type="checkbox" aria-label="Luck Points (Lucky) use 2 of 3"><input type="checkbox" aria-label="Luck Points (Lucky) use 3 of 3"></span></div><div class="res-row"><span class="res-name">Defiant Strike</span><span class="res-boxes"><input type="checkbox" aria-label="Defiant Strike use 1 of 1"></span></div><div class="res-row"><span class="res-name">Heroic Inspiration (Resourceful)</span><span class="res-boxes"><input type="checkbox" aria-label="Heroic Inspiration (Resourceful) use 1 of 1"></span></div><div class="res-row"><span class="res-name">Shield of Thralls (Tadpole, Short Rest)</span><span class="res-boxes"><input type="checkbox" aria-label="Shield of Thralls (Tadpole, Short Rest) use 1 of 1"></span></div></div></div></section>
 <section class="phase"><h2>Start of Your Turn</h2><div class="rule-card"><div class="rule-title">Indomitable Heart</div><div class="rule-text">Frightened? Roll a d20 — on 10+, the condition ends.</div></div></section>
 <section class="phase"><h2>Your Turn: Bonus Action</h2><div class="rule-card"><div class="rule-title">Steady Aim</div><div class="rule-text">Grant yourself Advantage on your next attack roll this turn. Your speed becomes 0 until your next turn.</div><div class="badge announce">📢 ANNOUNCE: You will not move this turn (before or after the attack).</div><div class="badge decision">🔀 DECIDE: Worth it only if you don&#x27;t need to move or reposition this turn.</div></div>
 <div class="rule-card"><div class="rule-title">Insightful Fighting</div><div class="rule-text">Your Wisdom (Insight) vs the target&#x27;s Charisma (Deception). Win, and for 1 minute you can Sneak Attack that creature without Advantage or an adjacent ally (still not while you have Disadvantage). Lasts until you use it on someone else.</div><div class="badge decision">🔀 DECIDE: Your Sneak Attack unlock when positioning fails — you have Insight Expertise, so you usually win.</div></div>
@@ -209,5 +214,6 @@ h2 {
 
 <section class="phase"><h2>Off-turn</h2><div class="rule-card"><div class="rule-title">When you&#x27;re hit</div><div class="rule-text">Uncanny Dodge: when an attacker you can see hits you with an attack, use your reaction to halve the attack&#x27;s damage against you.</div><div class="badge announce">📢 ANNOUNCE: Say it the moment the damage is announced — before it&#x27;s applied.</div></div><div class="always-available"><span class="always-label">Always available:</span> <span class="chip" title="When a hostile creature you can see leaves your reach without Disengaging or being Teleported/moved by an effect, you can use your reaction to make one melee attack against it.">Opportunity Attack</span> &middot; <span class="chip" title="If you took the Ready action earlier this turn, this is when you spend your reaction to actually take the readied action, once its trigger occurs.">Readied Action Trigger</span></div></section>
 <section class="phase"><h2>Anytime</h2><div class="rule-card"><div class="rule-title">Luck Points</div><div class="rule-text">3 Luck Points per Long Rest. Spend 1 when you roll a D20 Test to give yourself Advantage, or when a creature attacks you to impose Disadvantage on its roll. Advantage from Lucky also unlocks Sneak Attack.</div></div><div class="always-available"><span class="always-label">Always available:</span> <span class="chip" title="Once per turn, freely interact with one object or feature of the environment — e.g. draw OR stow one weapon. This doesn&#x27;t use your action. Swapping weapons beyond this one free interaction requires the Utilize action instead.">Interact with an Object</span></div></section>
+</main>
 </body>
 </html>
