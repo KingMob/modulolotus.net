@@ -86,6 +86,10 @@ h2 {
 .glance-phase { font-weight: bold; margin-top: 0.4em; }
 .glance ul { margin: 0.15em 0 0.4em 1.1em; padding: 0; font-weight: normal; }
 .glance ul li { margin: 0.12em 0; }
+.glance-lead { color: var(--badge-decision-fg); font-weight: 600; }
+/* Separates the "How you get advantage" digest from the phase-by-phase
+   list that follows it (see build_glance in dnd_flow/render.py). */
+.glance-phase-advantage { padding-bottom: 0.4em; margin-bottom: 0.2em; border-bottom: 1px solid var(--border-muted); }
 .res-list { margin-top: 0.25em; }
 .res-row {
   display: flex;
@@ -175,47 +179,47 @@ h2 {
 <h2>At a Glance</h2>
 <ol class="glance">
 <li class="glance-phase">Before Combat<ul>
-<li>Finished a Long Rest? You may reassign your 2 weapon masteries — currently Greatsword→Graze, Greatclub→Push.</li>
+<li><span class="glance-lead">Finished a Long Rest?</span> You may reassign your 2 weapon masteries — currently Greatsword→Graze, Greatclub→Push.</li>
 </ul></li>
 <li class="glance-phase">Start of Your Turn<ul>
-<li>Frightened? Roll 1d20 — on 10+, you&#x27;re no longer Frightened (Indomitable Heart).</li>
-<li>Mounted? Announce your steed&#x27;s action: Dash, Disengage, or Dodge.</li>
+<li><span class="glance-lead">Announce your steed&#x27;s action: Dash, Disengage, or Dodge.</span></li>
+<li><span class="glance-lead">Frightened?</span> Roll 1d20 — on 10+, you&#x27;re no longer Frightened (Indomitable Heart).</li>
 </ul></li>
 <li class="glance-phase">Your Turn: Action<ul>
-<li>Attack resolved? Apply the mastery effect: Graze = damage on a miss, Push = shove 10 ft on a hit.</li>
-<li>Bloodied (≤32 HP) and landed a hit? You may declare max damage — 1/Long Rest (Defiant Strike).</li>
-<li>Rolling two-handed weapon damage? 1s and 2s count as 3s (Great Weapon Fighting).</li>
+<li><span class="glance-lead">Mastery: Graze = 3 damage on a miss, Push = shove 10 ft.</span></li>
+<li><span class="glance-lead">Rolling two-handed weapon damage?</span> 1s and 2s count as 3s (Great Weapon Fighting).</li>
+<li><span class="glance-lead">Bloodied (≤32 HP) and landed a hit?</span> You may declare max damage — 1/Long Rest (Defiant Strike).</li>
 </ul></li>
 <li class="glance-phase">Your Turn: Bonus Action<ul>
-<li>Bonus action: touch-heal from your 30 HP pool — DOUBLED in Longbow form — or spend 5 to cure Poisoned (Lay on Hands).</li>
-<li>Bonus action: teleport 30 ft, costs a 2nd-level slot (Misty Step).</li>
+<li><span class="glance-lead">Lay on Hands</span></li>
+<li><span class="glance-lead">Divine Smite (or Wrathful, Ensnaring)</span></li>
+<li><span class="glance-lead">Divine Favor</span></li>
+<li><span class="glance-lead">Misty Step</span></li>
+<li><span class="glance-lead">Mount&#x27;s BA (Fell Glare, Fey Step, or Healing Touch)</span></li>
 </ul></li>
 <li class="glance-phase">End of Your Turn<ul>
-<li>LAST CALL before your turn ends: announce the Arms&#x27; form — Greatsword (+1 atk/dmg), Greatclub (+2 AC), or Longbow (ranged, 2x Lay on Hands)?</li>
+<li><span class="glance-lead">Announce the Arms&#x27; form — Greatsword, Greatclub, or Longbow.</span></li>
 </ul></li>
 <li class="glance-phase">Off-turn<ul>
-<li>Hit by an attack? Subtract 3 from Bludgeoning/Piercing/Slashing damage (Heavy Armor Master).</li>
-<li>Damaged while concentrating? CON save, DC 10 or half the damage (whichever is higher) — you save at +5 in your aura.</li>
-<li>When healed, add an extra +2 HP (Remarkable Recovery).</li>
-<li>Allies within 10 ft of you get +3 on all saves (Aura of Protection).</li>
+<li><span class="glance-lead">Hit by an attack?</span> Subtract 3 from Bludgeoning/Piercing/Slashing damage (Heavy Armor Master).</li>
+<li><span class="glance-lead">Damaged while concentrating?</span> CON save, DC 10 or half the damage (whichever is higher) — you save at +5 in your aura.</li>
+<li><span class="glance-lead">When healed, add an extra +2 HP (Remarkable Recovery).</span></li>
+<li><span class="glance-lead">Allies within 10 ft of you get +3 on all saves (Aura of Protection).</span></li>
 </ul></li>
 </ol>
 </section>
 <section class="phase"><h2>Before Combat</h2><div class="rule-card"><div class="rule-title">Weapon Mastery (Long Rest)</div><div class="rule-text">You can reassign your 2 masteries when you finish a Long Rest. The Arms&#x27; curse means you only ever swing the Arms, so keep them on its forms. Current: Greatsword→Graze (damage on a miss), Greatclub→Push (shove 10 ft on a hit). Third option if plans change: Longbow→Slow.</div><div class="badge announce">📢 ANNOUNCE: Declare mastery reassignments when you finish a Long Rest.</div></div>
 <div class="rule-card"><div class="rule-title">Resource checklist</div><div class="rule-text">All of these come back on a Long Rest.</div><div class="res-list"><div class="res-row"><span class="res-name">Channel Divinity (1 returns on Short Rest)</span><span class="res-boxes"><input type="checkbox" aria-label="Channel Divinity (1 returns on Short Rest) use 1 of 2"><input type="checkbox" aria-label="Channel Divinity (1 returns on Short Rest) use 2 of 2"></span></div><div class="res-row"><span class="res-name">Free Divine Smite</span><span class="res-boxes"><input type="checkbox" aria-label="Free Divine Smite use 1 of 1"></span></div><div class="res-row"><span class="res-name">Free Find Steed</span><span class="res-boxes"><input type="checkbox" aria-label="Free Find Steed use 1 of 1"></span></div><div class="res-row"><span class="res-name">Defiant Strike</span><span class="res-boxes"><input type="checkbox" aria-label="Defiant Strike use 1 of 1"></span></div><div class="res-row"><span class="res-name">Heroic Inspiration (Resourceful)</span><span class="res-boxes"><input type="checkbox" aria-label="Heroic Inspiration (Resourceful) use 1 of 1"></span></div><div class="res-row"><span class="res-name">Lay on Hands pool (HP)</span><span class="res-pool"><input type="text" size="3" maxlength="3" aria-label="Lay on Hands pool (HP) remaining"><span class="res-max">/ 30</span></span></div><div class="res-row"><span class="res-name">1st-level spell slots</span><span class="res-boxes"><input type="checkbox" aria-label="1st-level spell slots use 1 of 4"><input type="checkbox" aria-label="1st-level spell slots use 2 of 4"><input type="checkbox" aria-label="1st-level spell slots use 3 of 4"><input type="checkbox" aria-label="1st-level spell slots use 4 of 4"></span></div><div class="res-row"><span class="res-name">2nd-level spell slots</span><span class="res-boxes"><input type="checkbox" aria-label="2nd-level spell slots use 1 of 2"><input type="checkbox" aria-label="2nd-level spell slots use 2 of 2"></span></div></div></div></section>
-<section class="phase"><h2>Start of Your Turn</h2><div class="rule-card"><div class="rule-title">Indomitable Heart</div><div class="rule-text">Frightened? Roll a d20 — on 10+, the condition ends.</div></div>
-<div class="rule-card"><div class="rule-title">Mounted? Announce your steed&#x27;s action</div><div class="rule-text">A controlled mount acts on your initiative and can ONLY Dash, Disengage, or Dodge. Pick one each round and say it out loud — its movement is how you get around.</div><div class="badge announce">📢 ANNOUNCE: Every round on a mount: Dash, Disengage, or Dodge?</div></div></section>
+<section class="phase"><h2>Start of Your Turn</h2><div class="rule-card"><div class="rule-title">Announce your steed&#x27;s action</div><div class="rule-text">A controlled mount acts on your initiative and can ONLY Dash, Disengage, or Dodge. Pick one each round and say it out loud — its movement is how you get around.</div><div class="badge announce">📢 ANNOUNCE: Every round on a mount: Dash, Disengage, or Dodge?</div></div>
+<div class="rule-card"><div class="rule-title">Indomitable Heart</div><div class="rule-text">Frightened? Roll a d20 — on 10+, the condition ends.</div></div></section>
 <section class="phase"><h2>Your Turn: Action</h2><div class="rule-card"><div class="rule-title">On hit/miss — weapon mastery</div><div class="rule-text">Every attack with a mastery weapon has a mastery effect — most trigger on a hit, Graze on a miss. Apply the mastery effect every time.</div><div class="badge announce">📢 ANNOUNCE: Attack resolved? Apply the mastery effect — hit or miss.</div></div>
-<div class="rule-card"><div class="rule-title">On hit — Defiant Strike (1/LR)</div><div class="rule-text">While bloodied (≤32 HP), after a hit lands you may declare the damage roll is maximized. Pairs devastatingly with a Divine Smite in the same hit.</div><div class="badge announce">📢 ANNOUNCE: Bloodied and the hit matters? Declare max damage now (1/Long Rest).</div></div>
-<div class="rule-card"><div class="rule-title">On hit — Great Weapon Fighting</div><div class="rule-text">Two-handed melee damage dice: 1s and 2s count as 3s.</div></div><div class="always-available"><span class="always-label">Always available:</span> <span class="chip" title="Make a melee or ranged attack (or more than one, if you have Extra Attack).">Attack</span> &middot; <span class="chip" title="Gain extra movement equal to your Speed for this turn.">Dash</span> &middot; <span class="chip" title="Your movement doesn&#x27;t provoke Opportunity Attacks for the rest of the turn.">Disengage</span> &middot; <span class="chip" title="Until the start of your next turn, attack rolls against you have Disadvantage (if you can see the attacker) and you have Advantage on Dexterity saving throws.">Dodge</span> &middot; <span class="chip" title="Help an ally: give them Advantage on their next ability check for a task, or on their next attack roll against a creature within 5 feet of you.">Help</span> &middot; <span class="chip" title="Choose a trigger and an action (or Move) to take when it occurs before the start of your next turn; spending the reaction to do it is the &quot;Readied Action Trigger&quot; reminder in the Reaction section.">Ready</span> &middot; <span class="chip" title="Replace one of your attacks with an Unarmed Strike to Shove (push 5 feet or knock Prone) or Grapple (target&#x27;s Speed becomes 0) a creature no more than one size larger than you.">Shove / Grapple</span> &middot; <span class="chip" title="Use an object&#x27;s property or a feature tied to an object — e.g. drink a potion, light a torch, or swap weapons beyond your one free Interact (see &quot;Interact with an Object&quot;).">Utilize</span></div></section>
-<section class="phase"><h2>Your Turn: Bonus Action</h2><div class="rule-card"><div class="rule-title">Lay on Hands</div><div class="rule-text">Touch: heal any amount from your 30 HP pool, or spend 5 to cure Poisoned. The Arms&#x27; Longbow form DOUBLES the healing (Ebony Rejuvenation), and Remarkable Recovery adds +2 HP on top.</div></div>
-<div class="rule-card"><div class="rule-title">Misty Step</div><div class="rule-text">Teleport 30 ft (level-2 slot). Escapes grapples, Restrained-adjacent messes, and melee without Opportunity Attacks.</div></div></section>
+<div class="rule-card"><div class="rule-title">On hit — Great Weapon Fighting</div><div class="rule-text">Two-handed melee damage dice: 1s and 2s count as 3s.</div></div>
+<div class="rule-card"><div class="rule-title">On hit — Defiant Strike (1/LR)</div><div class="rule-text">While bloodied (≤32 HP), after a hit lands you may declare the damage roll is maximized. Pairs devastatingly with a Divine Smite in the same hit.</div><div class="badge announce">📢 ANNOUNCE: Bloodied and the hit matters? Declare max damage now (1/Long Rest).</div></div><div class="always-available"><span class="always-label">Always available:</span> <span class="chip" title="Make a melee or ranged attack (or more than one, if you have Extra Attack).">Attack</span> &middot; <span class="chip" title="Gain extra movement equal to your Speed for this turn.">Dash</span> &middot; <span class="chip" title="Your movement doesn&#x27;t provoke Opportunity Attacks for the rest of the turn.">Disengage</span> &middot; <span class="chip" title="Until the start of your next turn, attack rolls against you have Disadvantage (if you can see the attacker) and you have Advantage on Dexterity saving throws.">Dodge</span> &middot; <span class="chip" title="Help an ally: give them Advantage on their next ability check for a task, or on their next attack roll against a creature within 5 feet of you.">Help</span> &middot; <span class="chip" title="Choose a trigger and an action (or Move) to take when it occurs before the start of your next turn; spending the reaction to do it is the &quot;Readied Action Trigger&quot; reminder in the Reaction section.">Ready</span> &middot; <span class="chip" title="Replace one of your attacks with an Unarmed Strike to Shove (push 5 feet or knock Prone) or Grapple (target&#x27;s Speed becomes 0) a creature no more than one size larger than you.">Shove / Grapple</span> &middot; <span class="chip" title="Use an object&#x27;s property or a feature tied to an object — e.g. drink a potion, light a torch, or swap weapons beyond your once-per-turn free object interaction (draw OR stow one weapon).">Utilize</span></div></section>
 <section class="phase"><h2>End of Your Turn</h2><div class="rule-card"><div class="rule-title">Arms of the Arcane Defender form swap</div><div class="rule-text">LAST CALL: choose next round&#x27;s form. Greatsword = +1 attack &amp; damage. Greatclub = +2 AC. Longbow = ranged (+2 dmg w/ Bracers of Archery) and DOUBLES Lay on Hands healing. The curse means this is your only weapon, so the form IS your weapon choice.</div><div class="badge announce">📢 ANNOUNCE: Say it before your turn ends: which form next round?</div><div class="badge decision">🔀 DECIDE: Hitting hard (sword), tanking (club), or ranged/healing (bow)?</div></div></section>
 <section class="phase"><h2>Off-turn</h2><div class="rule-card"><div class="rule-title">When you&#x27;re hit</div><div class="rule-text">Heavy Armor Master: −3 to Bludgeoning/Piercing/Slashing damage from attacks while in heavy armor. Announce it EVERY hit — it&#x27;s the easiest thing on this sheet to forget.</div><div class="badge announce">📢 ANNOUNCE: −3 damage from every B/P/S weapon hit — say it each time.</div></div>
 <div class="rule-card"><div class="rule-title">When damaged while concentrating</div><div class="rule-text">CON save DC 10 (or half the damage if higher) to keep concentration — +5 for you inside your own aura.</div></div>
 <div class="rule-card"><div class="rule-title">When healed</div><div class="rule-text">Remarkable Recovery: +2 extra HP whenever a spell, potion, or class feature heals you.</div></div>
 <div class="rule-card"><div class="rule-title">Ally support</div><div class="rule-text">Remind allies within 10 ft: +3 to their saves from your aura.</div></div><div class="always-available"><span class="always-label">Always available:</span> <span class="chip" title="When a hostile creature you can see leaves your reach without Disengaging or being Teleported/moved by an effect, you can use your reaction to make one melee attack against it.">Opportunity Attack</span> &middot; <span class="chip" title="If you took the Ready action earlier this turn, this is when you spend your reaction to actually take the readied action, once its trigger occurs.">Readied Action Trigger</span></div></section>
-<section class="phase"><h2>Anytime</h2><div class="always-available"><span class="always-label">Always available:</span> <span class="chip" title="Once per turn, freely interact with one object or feature of the environment — e.g. draw OR stow one weapon. This doesn&#x27;t use your action. Swapping weapons beyond this one free interaction requires the Utilize action instead.">Interact with an Object</span></div></section>
 </main>
 </body>
 </html>
