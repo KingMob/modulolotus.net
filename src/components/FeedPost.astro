@@ -16,9 +16,10 @@ const excerpt = prepareFeedContent(await Astro.slots.render("default"), {
   idPrefix: `${titleId}-`,
 });
 const date = post.data.pubDate.toISOString().slice(0, 10);
+const tags = post.data.tags ?? [];
 ---
 
-<article aria-labelledby={titleId} class="py-9 first:pt-0">
+<article aria-labelledby={titleId} class="py-4.5 first:pt-0">
   <header class="mb-6">
     <a href={postUrl} class="link link-hover text-sm opacity-70">
       <time datetime={date}>{date}</time>
@@ -36,5 +37,14 @@ const date = post.data.pubDate.toISOString().slice(0, 10);
         Continue reading →
       </a>
     </p>
+  )}
+  {tags.length > 0 && (
+    <footer class="mt-6 flex flex-wrap gap-2" aria-label={`Tags for ${post.data.title}`}>
+      {tags.map((tag) => (
+        <a href={`/blog/tags/${tag}`} class="badge badge-outline no-underline">
+          {tag}
+        </a>
+      ))}
+    </footer>
   )}
 </article>
