@@ -6,6 +6,10 @@ pnpm = "10"
 description = "Build the project"
 run = "pnpm run build"
 
+[tasks."test"]
+description = "Test rendered blog feed excerpts"
+run = "node --experimental-strip-types --test src/lib/*.test.ts"
+
 [tasks."dev"]
 description = "Run the development server and watch for changes"
 run = "pnpm run dev"

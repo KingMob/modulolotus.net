@@ -28,6 +28,9 @@ importers:
       dayjs:
         specifier: ^1.11.19
         version: 1.11.19
+      parse5:
+        specifier: ^8.0.1
+        version: 8.0.1
       sharp:
         specifier: ^0.34.5
         version: 0.34.5
@@ -1930,6 +1933,13 @@ packages:
       }
     engines: { node: ">=0.12" }
 
+  entities@8.1.0:
+    resolution:
+      {
+        integrity: sha512-kxL7msIffSuh9aaFAMD7rxAIuTRMAHMeBtgHW2yUdWw732ZNh4MehkF2gdjvtdmikkaIP9bFDDJOPlsvm7avrA==,
+      }
+    engines: { node: ">=20.19.0" }
+
   error-stack-parser-es@1.0.5:
     resolution:
       {
@@ -2552,6 +2562,12 @@ packages:
     resolution:
       {
         integrity: sha512-zAMfbta9nPA8AKkA4WdmNAT8R8s6Dk0/xwPsqNnRidMFcLo1YkLuPDTgs2f64XdzS8vbLNnoJ+uUIkgbz7oRHA==,
+      }
+
+  parse5@8.0.1:
+    resolution:
+      {
+        integrity: sha512-z1e/HMG90obSGeidlli3hj7cbocou0/wa5HacvI3ASx34PecNjNQeaHNo5WIZpWofN9kgkqV1q5YvXe3F0FoPw==,
       }
 
   path-expression-matcher@1.6.2:
@@ -4211,6 +4227,8 @@ snapshots:
 
   entities@4.5.0: {}
 
+  entities@8.1.0: {}
+
   error-stack-parser-es@1.0.5: {}
 
   es-module-lexer@3.0.4: {}
@@ -4563,6 +4581,10 @@ snapshots:
   p-timeout@7.0.2: {}
 
   package-manager-detector@1.9.0: {}
+
+  parse5@8.0.1:
+    dependencies:
+      entities: 8.1.0
 
   path-expression-matcher@1.6.2: {}
 

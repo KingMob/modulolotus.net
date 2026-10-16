@@ -1,0 +1,40 @@
+---
+import type { CollectionEntry } from "astro:content";
+import { HOME_POST_CHARACTER_LIMIT } from "../config";
+import { prepareFeedContent } from "../lib/feed";
+
+interface Props {
+  post: CollectionEntry<"blog">;
+}
+
+const { post } = Astro.props;
+const postUrl = `/blog/${post.id}`;
+const titleId = `post-${post.id}`;
+const excerpt = prepareFeedContent(await Astro.slots.render("default"), {
+  characterLimit: HOME_POST_CHARACTER_LIMIT,
+  postUrl,
+  idPrefix: `${titleId}-`,
+});
+const date = post.data.pubDate.toISOString().slice(0, 10);
+---
+
+<article aria-labelledby={titleId} class="py-9 first:pt-0">
+  <header class="mb-6">
+    <a href={postUrl} class="link link-hover text-sm opacity-70">
+      <time datetime={date}>{date}</time>
+    </a>
+    <h2 id={titleId} class="mt-2 text-3xl font-bold leading-tight">
+      <a href={postUrl} class="link link-hover">{post.data.title}</a>
+    </h2>
+    {post.data.badge && <div class="badge badge-secondary mt-3">{post.data.badge}</div>}
+  </header>
+  <div class="prose prose-lg max-w-none prose-img:mx-auto" set:html={excerpt.html} />
+  {excerpt.truncated && (
+    <p class="mt-5">
+      <span aria-hidden="true">… </span>
+      <a href={postUrl} class="link link-secondary link-hover font-semibold" aria-label={`Continue reading: ${post.data.title}`}>
+        Continue reading →
+      </a>
+    </p>
+  )}
+</article>
