@@ -7,14 +7,14 @@
 
 ## Tech Stack
 
-- Astro 5 with Cloudflare adapter
+- Astro 7 with static output for Cloudflare Pages and Workers assets
 - Tailwind CSS v4 + DaisyUI v5
-- Node.js 22+ required (see `.node-version`)
+- Use the Node.js version in `mise.toml` and `.node-version`; Astro requires 22.22.0 or newer.
 
 ## Common Commands
 
 ```bash
-pnpm dev          # Start dev server
-pnpm build        # Build for production
-pnpm preview      # Preview production build locally
+mise run dev      # Start dev server
+mise run build    # Build for production
+mise run preview  # Preview the build with Wrangler
 ```

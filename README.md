@@ -38,9 +38,13 @@ pnpm run dev
 
 ## Tech Stack
 
-- [Astro](https://astro.build)
+- [Astro 7](https://astro.build)
 - [tailwindcss](https://tailwindcss.com/)
 - [DaisyUI](https://daisyui.com/)
+
+Node.js is managed by `mise.toml`, with `.node-version` selecting the same version for Cloudflare builds. Astro requires Node.js 22.22.0 or newer.
+
+The site builds to static files in `dist/`. Cloudflare Pages serves those files for the test site, and `mise run deploy` uploads them as Workers assets for production. An Astro Cloudflare adapter is unnecessary because every route is prerendered; keeping static output also preserves both deployment paths.
 
 ## Project Structure
 
