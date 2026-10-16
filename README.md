@@ -100,7 +100,7 @@ You can change global site configuration on '/src/config.ts' file:
 - **SITE_TITLE**: Default pages title.
 - **SITE_DESCRIPTION**: Default pages title.
 - **TRANSITION_API**: Enable and disable transition API
-- **HOME_POST_CHARACTER_LIMIT**: Maximum rendered text characters per homepage post (default: 3000). The homepage shows the latest 10 published posts, with a “Continue reading” link for longer posts.
+- **HOME_POST_CHARACTER_LIMIT**: Rendered text budget per homepage post (default: 3500). Excerpts end at complete paragraphs or other blocks, keeping lists and code blocks intact. A first block longer than the budget is shown in full. The homepage shows the latest 10 published posts, with a “Continue reading” link when content is omitted.
 
 ### Components usage
 

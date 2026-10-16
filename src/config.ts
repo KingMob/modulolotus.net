@@ -5,5 +5,5 @@ export const SITE_TITLE = "Modulo Lotus";
 export const SITE_DESCRIPTION = "The personal site of Matthew Davidson.";
 export const TRANSITION_API = true;
 
-// Maximum rendered text characters per post on the homepage.
-export const HOME_POST_CHARACTER_LIMIT = 3000;
+// Rendered text budget per homepage post, keeping complete blocks together.
+export const HOME_POST_CHARACTER_LIMIT = 3500;

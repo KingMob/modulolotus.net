@@ -5,7 +5,7 @@ import { prepareFeedContent } from "./feed.ts";
 
 function excerpt(
   html: string,
-  characterLimit = 3000,
+  characterLimit = 3500,
   idPrefix = "post-example-",
 ) {
   return prepareFeedContent(html, {
@@ -28,22 +28,33 @@ test("short posts retain full formatted text, entities, links and embedded media
   assert.equal(result.html, source);
 });
 
-test("truncation preserves nested list, link and code markup without cutting entities", () => {
+test("excerpts stop at the last complete paragraph that fits", () => {
   const result = excerpt(
-    '<ul><li><a href="/more">A &amp; B</a></li><li><code>abcdef</code></li></ul><p>Later</p>',
+    "<p>First <em>paragraph</em>.</p>\n<p>Second paragraph.</p>\n<p>Last.</p>",
+    30,
+  );
+  assert.deepEqual(result, {
+    html: "<p>First <em>paragraph</em>.</p>",
+    truncated: true,
+  });
+});
+
+test("an oversized first list stays complete, including nested lists, links and entities", () => {
+  const result = excerpt(
+    '<ul><li><a href="/more">A &amp; B</a><ul><li>nested</li></ul></li><li><code>abcdef</code></li></ul><p>Later</p>',
     8,
   );
   assert.equal(result.truncated, true);
   assert.equal(
     result.html,
-    '<ul><li><a href="/more">A &amp; B</a></li><li><code>abc</code></li></ul>',
+    '<ul><li><a href="/more">A &amp; B</a><ul><li>nested</li></ul></li><li><code>abcdef</code></li></ul>',
   );
-  assert.equal(textContent(parseFragment(result.html)), "A & Babc");
+  assert.equal(textContent(parseFragment(result.html)), "A & Bnestedabcdef");
   assert.equal(serialize(parseFragment(result.html)), result.html);
 });
 
 test("Unicode text uses characters rather than bytes or half a surrogate pair", () => {
-  const result = excerpt("<p>🌻🌷🌺abcd</p>", 3);
+  const result = excerpt("<p>🌻🌷🌺</p><p>abcd</p>", 3);
   assert.equal(result.html, "<p>🌻🌷🌺</p>");
   assert.equal(result.truncated, true);
 });
@@ -55,9 +66,68 @@ test("an exact-length post remains complete, including trailing media", () => {
   });
 });
 
+test("a first paragraph longer than the budget stays whole", () => {
+  const paragraph = `<p>${"x".repeat(3501)} <em>ending</em>.</p>`;
+  assert.deepEqual(excerpt(paragraph + "<p>Later.</p>"), {
+    html: paragraph,
+    truncated: true,
+  });
+});
+
+test("an oversized single paragraph is a full post, including its trailing media", () => {
+  const source = '<p>A whole long paragraph.</p><img src="/photo.jpg">';
+  assert.deepEqual(excerpt(source, 3), { html: source, truncated: false });
+});
+
+test("leading media does not prevent retaining an oversized first paragraph", () => {
+  const source = '<img src="/photo.jpg"><p>A whole long paragraph.</p>';
+  assert.deepEqual(excerpt(source + "<p>Later.</p>", 3), {
+    html: source,
+    truncated: true,
+  });
+});
+
 test("preformatted code retains indentation while HTML formatting whitespace does not consume the budget", () => {
-  const result = excerpt("<p>abc</p>\n\n<pre><code>  xy\nzz</code></pre>", 7);
-  assert.equal(result.html, "<p>abc</p> <pre><code>  xy</code></pre>");
+  const source = "<p>abc</p>\n\n<pre><code>  xy\nzz</code></pre><p>Later.</p>";
+  assert.deepEqual(excerpt(source, 10), {
+    html: "<p>abc</p> <pre><code>  xy\nzz</code></pre>",
+    truncated: true,
+  });
+  assert.deepEqual(excerpt(source, 9), {
+    html: "<p>abc</p>",
+    truncated: true,
+  });
+});
+
+test("wrapped code blocks and blockquotes stay intact", () => {
+  for (const block of [
+    "<figure><pre><code>abcdef\n  gh</code></pre><figcaption>Example</figcaption></figure>",
+    "<blockquote><p>First paragraph.</p><p>Second paragraph.</p></blockquote>",
+  ]) {
+    assert.deepEqual(excerpt(block + "<p>Later.</p>", 3), {
+      html: block,
+      truncated: true,
+    });
+  }
+});
+
+test("a heading is omitted when its following paragraph does not fit", () => {
+  const result = excerpt(
+    '<p>Intro.</p>\n<h2 id="next">Next</h2>\n<p>Paragraph.</p>',
+    10,
+  );
+  assert.deepEqual(result, { html: "<p>Intro.</p>", truncated: true });
+});
+
+test("leading headings stay with an oversized first paragraph", () => {
+  const result = excerpt(
+    "<h2>Title</h2>\n<p>A whole paragraph.</p><p>Later.</p>",
+    3,
+  );
+  assert.deepEqual(result, {
+    html: "<h3>Title</h3> <p>A whole paragraph.</p>",
+    truncated: true,
+  });
 });
 
 test("retained headings and footnotes have unique IDs; omitted targets link to the full post", () => {

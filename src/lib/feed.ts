@@ -50,27 +50,56 @@ export function prepareFeedContent(
   }
   prepare(fragment);
 
-  const truncated = characterCount > characterLimit;
-  if (truncated) {
-    let remaining = characterLimit;
-    function truncate(parent: Parent, preformatted = false) {
-      const children: Child[] = [];
-      for (const node of parent.childNodes) {
-        if (remaining === 0) break;
-        if ("tagName" in node) {
-          truncate(node, preformatted || node.tagName === "pre");
-        } else if (node.nodeName === "#text" && "value" in node) {
-          if (preformatted || node.value.trim()) {
-            const characters = Array.from(node.value);
-            node.value = characters.slice(0, remaining).join("");
-            remaining = Math.max(0, remaining - characters.length);
-          }
-        }
-        children.push(node);
+  let truncated = false;
+  if (characterCount > characterLimit) {
+    function textLength(node: Child, preformatted = false): number {
+      if ("tagName" in node) {
+        return node.childNodes.reduce(
+          (total, child) =>
+            total + textLength(child, preformatted || node.tagName === "pre"),
+          0,
+        );
       }
-      parent.childNodes = children;
+      return "value" in node && (preformatted || node.value.trim())
+        ? Array.from(node.value).length
+        : 0;
     }
-    truncate(fragment);
+
+    // Rendered Markdown blocks are siblings. Keep their nested markup intact,
+    // and attach headings to the following block so excerpts do not orphan them.
+    const blocks: Child[][] = [];
+    let pending: Child[] = [];
+    for (const node of fragment.childNodes) {
+      pending.push(node);
+      if (
+        ("tagName" in node && /^h[1-6]$/.test(node.tagName)) ||
+        node.nodeName === "#comment" ||
+        ("value" in node && !node.value.trim())
+      ) {
+        continue;
+      }
+      blocks.push(pending);
+      pending = [];
+    }
+    if (pending.length) blocks.push(pending);
+
+    const children: Child[] = [];
+    let retainedLength = 0;
+    for (const block of blocks) {
+      const length = block.reduce((total, node) => total + textLength(node), 0);
+      // The budget is soft for the first content block, even after leading media.
+      if (
+        length &&
+        retainedLength &&
+        retainedLength + length > characterLimit
+      ) {
+        truncated = true;
+        break;
+      }
+      children.push(...block);
+      retainedLength += length;
+    }
+    fragment.childNodes = children;
   }
 
   const elements: Element[] = [];
