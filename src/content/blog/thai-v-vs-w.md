@@ -2,7 +2,7 @@
 title: "Why do Thai people use the \"w\" sound as a \"v\" substitute?"
 pubDate: 2025-06-28
 tags: 
-  - Thai
+  - thai
   - language
   - IPA
   - linguistics
