@@ -59,6 +59,10 @@ h3 {
   font-family: var(--heading-font-family);
 }
 
+.prose hr {
+  margin-block: 1.5rem;
+}
+
 /* daisyUI v5 menu styling overrides - restore pre-v5 menu appearance */
 .menu li {
   width: 100%;
