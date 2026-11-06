@@ -9,7 +9,7 @@
 
 - Astro 7 with static output for Cloudflare Pages and Workers assets
 - Tailwind CSS v4 + DaisyUI v5
-- Use the Node.js version in `mise.toml` and `.node-version`; Astro requires 22.22.0 or newer.
+- Use the Node.js version in `mise.toml` and `.node-version`; Astro requires 22.23.4 or newer.
 
 ## Common Commands
 
