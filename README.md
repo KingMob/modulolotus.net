@@ -30,11 +30,13 @@ Run the following command in your terminal
 pnpm install
 ```
 
-Once the packages are installed you are ready to run astro. Astro comes with a built-in development server that has everything you need for project development. The astro dev command will start the local development server so that you can see your new website in action for the very first time.
+Run the development server at https://modulo.localhost through portless. The portless proxy runs as a background service.
 
 ```bash
-pnpm run dev
+mise run dev
 ```
+
+Use `pnpm run dev` for the plain http://localhost:4321 fallback without portless.
 
 ## Tech Stack
 
@@ -42,7 +44,7 @@ pnpm run dev
 - [tailwindcss](https://tailwindcss.com/)
 - [DaisyUI](https://daisyui.com/)
 
-Node.js is managed by `mise.toml`, with `.node-version` selecting the same version for Cloudflare builds. Astro requires Node.js 22.22.0 or newer.
+Node.js is managed by `mise.toml`, with `.node-version` selecting the same version for Cloudflare builds. Astro requires Node.js 22.23.4 or newer.
 
 The site builds to static files in `dist/`. Cloudflare Pages serves those files for the test site, and `mise run deploy` uploads them as Workers assets for production. An Astro Cloudflare adapter is unnecessary because every route is prerendered; keeping static output also preserves both deployment paths.
 

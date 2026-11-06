@@ -14,7 +14,9 @@
 ## Common Commands
 
 ```bash
-mise run dev      # Start dev server
+mise run dev      # Serve https://modulo.localhost via portless
 mise run build    # Build for production
 mise run preview  # Preview the build with Wrangler
 ```
+
+The portless proxy runs as a background service. Use `pnpm run dev` for the plain http://localhost:4321 fallback without portless.

@@ -11,8 +11,8 @@ description = "Test rendered blog feed excerpts"
 run = "node --experimental-strip-types --test src/lib/*.test.ts"
 
 [tasks."dev"]
-description = "Run the development server and watch for changes"
-run = "pnpm run dev"
+description = "Run the development server at https://modulo.localhost via portless"
+run = "portless"
 
 [tasks."preview"]
 description = "Run the local Wrangler server to see how CloudFlare will display it"
