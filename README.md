@@ -48,6 +48,14 @@ Node.js is managed by `mise.toml`, with `.node-version` selecting the same versi
 
 The site builds to static files in `dist/`. Cloudflare Pages serves those files for the test site, and `mise run deploy` uploads them as Workers assets for production. An Astro Cloudflare adapter is unnecessary because every route is prerendered; keeping static output also preserves both deployment paths.
 
+## Analytics
+
+`src/components/posthog.astro` contains the public PostHog project token and US ingestion host. `BaseHead.astro` includes it in the shared Astro layouts.
+
+PostHog initializes once and captures pageviews on ClientRouter history changes. The `identified_only` setting keeps anonymous pageviews without creating person profiles.
+
+Integration details: [PostHog Astro documentation](https://posthog.com/docs/libraries/astro).
+
 ## Project Structure
 
 ```
